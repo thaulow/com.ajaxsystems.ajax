@@ -188,6 +188,13 @@ export class SiaServer extends EventEmitter {
     return this.config.port;
   }
 
+  /**
+   * Whether any hub has an active TCP connection to this server.
+   */
+  hasActiveConnections(): boolean {
+    return this.sockets.size > 0;
+  }
+
   // ============================================================
   // Connection Handling
   // ============================================================

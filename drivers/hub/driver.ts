@@ -193,12 +193,14 @@ module.exports = class HubDriver extends Homey.Driver {
       const siaServer = app?.getSiaServer?.();
       if (!siaServer) return { connected: false };
 
-      // getTimeSinceLastHeartbeat returns -1 if no message ever received,
-      // otherwise the ms since the last heartbeat/event.
+      // Check for active TCP connections (hub connected to our server)
+      // or recent SIA messages (heartbeat/event processed successfully).
+      const hasConnection = siaServer.hasActiveConnections();
       const timeSince = siaServer.getTimeSinceLastHeartbeat();
-      const connected = timeSince >= 0 && timeSince < 300_000; // within 5 minutes
+      const hasRecentActivity = timeSince >= 0 && timeSince < 300_000;
+      const connected = hasConnection || hasRecentActivity;
       if (connected) {
-        this.log('SIA pairing: hub connection confirmed (last activity', timeSince, 'ms ago)');
+        this.log('SIA pairing: hub connection confirmed (active TCP:', hasConnection, ', last activity:', timeSince, 'ms ago)');
       }
       return { connected };
     });
