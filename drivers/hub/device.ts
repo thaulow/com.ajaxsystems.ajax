@@ -2,6 +2,7 @@
 
 import { AjaxBaseDevice } from '../../lib/base-device';
 import { AjaxHub } from '../../lib/types';
+import { SiaAlarmEvent } from '../../lib/sia-server';
 import {
   armingStateToHomey,
   parseArmingState,
@@ -12,10 +13,201 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
   private hubListenerBound: ((data: any) => void) | null = null;
   private onlineListenerBound: ((data: any) => void) | null = null;
+  private siaEventBound: ((event: SiaAlarmEvent) => void) | null = null;
+  private siaHeartbeatBound: ((account: string) => void) | null = null;
+  private siaHeartbeatTimer: any = null;
+  private static readonly SIA_HEARTBEAT_TIMEOUT_MS = 300_000; // 5 minutes
 
   async onInit(): Promise<void> {
     this.log('Hub device init:', this.getName());
 
+    const connectionMode = this.getStoreValue('connectionMode');
+
+    if (connectionMode === 'sia') {
+      await this.initSiaMode();
+    } else {
+      await this.initApiMode();
+    }
+  }
+
+  async onUninit(): Promise<void> {
+    const connectionMode = this.getStoreValue('connectionMode');
+
+    if (connectionMode === 'sia') {
+      this.cleanupSiaListeners();
+    } else {
+      const coordinator = this.getCoordinator();
+      if (coordinator && this.hubListenerBound) {
+        coordinator.removeListener('hubStateChange', this.hubListenerBound);
+      }
+      if (coordinator && this.onlineListenerBound) {
+        coordinator.removeListener('hubOnlineChange', this.onlineListenerBound);
+      }
+    }
+  }
+
+  // ============================================================
+  // SIA Mode
+  // ============================================================
+
+  private async initSiaMode(): Promise<void> {
+    this.log('Hub device running in SIA mode');
+
+    // Register capability listeners (SIA is receive-only, commands are not available)
+    this.registerCapabilityListener('homealarm_state', async () => {
+      throw new Error('Arm/disarm is not available in SIA mode. Use the Ajax app or keypad to control your system.');
+    });
+
+    this.registerCapabilityListener('ajax_night_mode', async () => {
+      throw new Error('Night mode control is not available in SIA mode. Use the Ajax app or keypad to control your system.');
+    });
+
+    // Set initial state
+    await this.safeSetCapability('homealarm_state', 'disarmed');
+    await this.safeSetCapability('ajax_night_mode', false);
+    await this.safeSetCapability('alarm_tamper', false);
+    await this.safeSetCapability('ajax_connection_state', false);
+
+    // Subscribe to SIA events from the app
+    const app = this.getApp();
+    if (app?.getSiaServer) {
+      const siaServer = app.getSiaServer();
+      if (siaServer) {
+        this.subscribeSiaEvents(siaServer);
+        if (siaServer.isRunning()) {
+          await this.safeSetCapability('ajax_connection_state', true);
+          this.setAvailable().catch(this.error);
+        }
+      } else {
+        this.log('SIA server not yet started, waiting...');
+      }
+    }
+
+    // Also listen for when the SIA server is (re)started
+    if (app) {
+      const onSiaReady = (server: any) => {
+        this.subscribeSiaEvents(server);
+        this.safeSetCapability('ajax_connection_state', true);
+        this.setAvailable().catch(this.error);
+      };
+      app.on?.('siaServerReady', onSiaReady);
+    }
+  }
+
+  private subscribeSiaEvents(siaServer: any): void {
+    this.cleanupSiaListeners();
+
+    const accountId = this.getStoreValue('siaAccountId');
+
+    this.siaEventBound = (event: SiaAlarmEvent) => {
+      // Only handle events for our account
+      if (accountId && event.account !== accountId) return;
+      this.onSiaEvent(event);
+    };
+
+    this.siaHeartbeatBound = (account: string) => {
+      if (accountId && account !== accountId) return;
+      this.onSiaHeartbeat();
+    };
+
+    siaServer.on('event', this.siaEventBound);
+    siaServer.on('heartbeat', this.siaHeartbeatBound);
+
+    // Start heartbeat watchdog
+    this.resetSiaHeartbeatTimer();
+  }
+
+  private cleanupSiaListeners(): void {
+    if (this.siaHeartbeatTimer) {
+      this.homey.clearTimeout(this.siaHeartbeatTimer);
+      this.siaHeartbeatTimer = null;
+    }
+    this.siaEventBound = null;
+    this.siaHeartbeatBound = null;
+  }
+
+  private onSiaEvent(event: SiaAlarmEvent): void {
+    this.log(`SIA event received: ${event.type} - ${event.description} (zone ${event.zone})`);
+
+    this.resetSiaHeartbeatTimer();
+
+    switch (event.type) {
+      case 'arm':
+        this.safeSetCapability('homealarm_state', 'armed');
+        this.safeSetCapability('ajax_night_mode', false);
+        break;
+
+      case 'disarm':
+        this.safeSetCapability('homealarm_state', 'disarmed');
+        this.safeSetCapability('ajax_night_mode', false);
+        break;
+
+      case 'night_arm':
+        this.safeSetCapability('ajax_night_mode', true);
+        break;
+
+      case 'night_disarm':
+        this.safeSetCapability('ajax_night_mode', false);
+        break;
+
+      case 'partial_arm':
+        this.safeSetCapability('homealarm_state', 'partially_armed');
+        break;
+
+      case 'tamper':
+        this.safeSetCapability('alarm_tamper', true);
+        break;
+
+      case 'tamper_restore':
+        this.safeSetCapability('alarm_tamper', false);
+        break;
+
+      case 'alarm':
+        // Trigger the alarm flow card
+        this.homey.flow.getTriggerCard('alarm_event')
+          ?.trigger(this, {
+            event_type: event.category || 'alarm',
+            device_name: `Zone ${event.zone}`,
+            description: event.description,
+          })
+          .catch(this.error);
+        break;
+
+      case 'alarm_restore':
+        break;
+
+      case 'test':
+        this.log('SIA supervision/test event received');
+        break;
+    }
+
+    // Update connection state - we're receiving events
+    this.safeSetCapability('ajax_connection_state', true);
+    this.setAvailable().catch(this.error);
+  }
+
+  private onSiaHeartbeat(): void {
+    this.resetSiaHeartbeatTimer();
+    this.safeSetCapability('ajax_connection_state', true);
+    this.setAvailable().catch(this.error);
+  }
+
+  private resetSiaHeartbeatTimer(): void {
+    if (this.siaHeartbeatTimer) {
+      this.homey.clearTimeout(this.siaHeartbeatTimer);
+    }
+    this.siaHeartbeatTimer = this.homey.setTimeout(() => {
+      this.log('SIA heartbeat timeout - hub may be offline');
+      this.safeSetCapability('ajax_connection_state', false);
+      this.setUnavailable('No heartbeat received from hub').catch(this.error);
+    }, HubDevice.SIA_HEARTBEAT_TIMEOUT_MS);
+  }
+
+  // ============================================================
+  // API Mode
+  // ============================================================
+
+  private async initApiMode(): Promise<void> {
     // Register capability listeners
     this.registerCapabilityListener('homealarm_state', async (value: string) => {
       await this.onAlarmStateSet(value);
@@ -44,18 +236,8 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     this.updateFromCoordinator();
   }
 
-  async onUninit(): Promise<void> {
-    const coordinator = this.getCoordinator();
-    if (coordinator && this.hubListenerBound) {
-      coordinator.removeListener('hubStateChange', this.hubListenerBound);
-    }
-    if (coordinator && this.onlineListenerBound) {
-      coordinator.removeListener('hubOnlineChange', this.onlineListenerBound);
-    }
-  }
-
   // ============================================================
-  // State Updates
+  // State Updates (API mode)
   // ============================================================
 
   private async updateFromCoordinator(): Promise<void> {
@@ -98,7 +280,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   }
 
   // ============================================================
-  // Command Handlers
+  // Command Handlers (API mode)
   // ============================================================
 
   private async onAlarmStateSet(value: string): Promise<void> {
@@ -114,15 +296,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
           await api.setHubArming(hubId, 'DISARM');
           break;
         case 'partially_armed':
-          // Partially armed is typically achieved through group-level arming
-          // For hub-level, we'll just arm
           await api.setHubArming(hubId, 'ARM');
           break;
         default:
           throw new Error(`Unknown alarm state: ${value}`);
       }
 
-      // Refresh state after command
       this.getCoordinator().refresh().catch(this.error);
     } catch (err) {
       this.error('Failed to set alarm state:', (err as Error).message);

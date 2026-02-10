@@ -6,6 +6,8 @@ import { AuthCredentials } from '../../lib/types';
 
 module.exports = class HubDriver extends Homey.Driver {
 
+  private siaLoginData: any = null;
+
   async onInit(): Promise<void> {
     this.log('Hub driver initialized');
 
@@ -58,11 +60,54 @@ module.exports = class HubDriver extends Homey.Driver {
 
   async onPair(session: Homey.Driver.PairSession): Promise<void> {
     let api: AjaxApiClient | null = null;
+    this.siaLoginData = null;
 
     session.setHandler('login', async (data: any) => {
       this.log('Pairing: login attempt, mode:', data.auth_mode);
 
       const mode = data.auth_mode || 'user';
+
+      // SIA mode: no API call needed, just validate and store config
+      if (mode === 'sia') {
+        const port = parseInt(data.sia_port) || 5000;
+        const accountId = (data.sia_account || '').trim();
+        const hubName = (data.sia_hub_name || '').trim();
+
+        if (!accountId) throw new Error('Account ID is required');
+        if (port < 1024 || port > 65535) throw new Error('Port must be between 1024 and 65535');
+
+        // Save SIA settings
+        this.homey.settings.set('auth_mode', 'sia');
+        this.homey.settings.set('sia_port', port);
+        this.homey.settings.set('sia_account', accountId);
+        this.homey.settings.set('sia_encryption_key', data.sia_encryption_key || '');
+
+        // Store for list_devices handler
+        this.siaLoginData = {
+          hubName: hubName || `Ajax Hub (SIA)`,
+          port,
+          accountId,
+          encryptionKey: data.sia_encryption_key || '',
+        };
+
+        // Tell the app to start/restart the SIA server
+        const app = this.homey.app as any;
+        if (app?.startSiaServer) {
+          try {
+            await app.startSiaServer({
+              port,
+              accountId,
+              encryptionKey: data.sia_encryption_key || undefined,
+            });
+          } catch (err) {
+            throw new Error(`Failed to start SIA server: ${(err as Error).message}`);
+          }
+        }
+
+        return true;
+      }
+
+      // API-based modes
       const credentials: AuthCredentials = {
         mode: mode as AuthCredentials['mode'],
         apiKey: data.api_key || '',
@@ -129,8 +174,33 @@ module.exports = class HubDriver extends Homey.Driver {
     });
 
     session.setHandler('list_devices', async () => {
+      // SIA mode: return a single hub with the user-provided name
+      if (this.siaLoginData) {
+        const { hubName, port, accountId, encryptionKey } = this.siaLoginData;
+        const hubId = `sia_${accountId}_${port}`;
+        return [{
+          name: hubName,
+          data: {
+            id: hubId,
+            hubId: hubId,
+          },
+          store: {
+            connectionMode: 'sia',
+            siaPort: port,
+            siaAccountId: accountId,
+            siaEncryptionKey: encryptionKey,
+          },
+          capabilities: [
+            'homealarm_state',
+            'ajax_night_mode',
+            'alarm_tamper',
+            'ajax_connection_state',
+          ],
+        }];
+      }
+
+      // API-based modes
       if (!api) {
-        // Try using the existing app API
         const app = this.homey.app as any;
         if (app?.isReady()) {
           api = app.getApi();
@@ -148,6 +218,7 @@ module.exports = class HubDriver extends Homey.Driver {
         },
         store: {
           hubSubtype: hub.hubSubtype,
+          connectionMode: 'api',
         },
         capabilities: [
           'homealarm_state',

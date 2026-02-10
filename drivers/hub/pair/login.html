@@ -78,6 +78,15 @@
     .mode-fields.active {
       display: block;
     }
+    .info-box {
+      background: rgba(128,128,128,0.1);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      line-height: 1.5;
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -88,20 +97,48 @@
   <div class="form-group">
     <label>Connection Mode</label>
     <select id="auth_mode" onchange="toggleMode()">
-      <option value="user">User Mode (API Key + Login)</option>
-      <option value="company">Company Mode (Company Token)</option>
-      <option value="proxy">Proxy Mode (Custom Server)</option>
+      <option value="sia">SIA Protocol (Local Network)</option>
+      <option value="user">Enterprise API (User Login)</option>
+      <option value="company">Enterprise API (Company Token)</option>
+      <option value="proxy">Proxy Server</option>
     </select>
   </div>
 
-  <div class="form-group">
+  <!-- SIA Mode Fields (default) -->
+  <div id="sia_fields" class="mode-fields active">
+    <div class="info-box">
+      Receive events directly from your Ajax hub over the local network using the SIA DC-09 protocol. Configure your hub's Monitoring Station settings to point to your Homey's IP address and the port below.
+    </div>
+    <div class="form-group">
+      <label>Hub Name</label>
+      <input type="text" id="sia_hub_name" placeholder="e.g. Home, Office" />
+      <div class="hint">A name for this hub in Homey</div>
+    </div>
+    <div class="form-group">
+      <label>Listening Port</label>
+      <input type="number" id="sia_port" value="5000" min="1024" max="65535" />
+      <div class="hint">TCP port Homey will listen on (configure same port in hub Monitoring Station settings)</div>
+    </div>
+    <div class="form-group">
+      <label>Account ID</label>
+      <input type="text" id="sia_account" placeholder="e.g. 1234" />
+      <div class="hint">Account number configured in your hub's Monitoring Station settings</div>
+    </div>
+    <div class="form-group">
+      <label>Encryption Key (optional)</label>
+      <input type="text" id="sia_encryption_key" placeholder="AES-128 key in hex (leave empty for unencrypted)" />
+      <div class="hint">Only needed if you enabled encryption in the hub's Monitoring Station settings</div>
+    </div>
+  </div>
+
+  <div id="api_key_group" class="form-group" style="display: none;">
     <label>API Key</label>
     <input type="text" id="api_key" placeholder="Your Ajax Enterprise API key" />
     <div class="hint">X-Api-Key from Ajax Systems Enterprise API</div>
   </div>
 
   <!-- User Mode Fields -->
-  <div id="user_fields" class="mode-fields active">
+  <div id="user_fields" class="mode-fields">
     <div class="form-group">
       <label>Email</label>
       <input type="email" id="email" placeholder="Ajax account email" />
@@ -156,7 +193,9 @@
       document.querySelectorAll('.mode-fields').forEach(function(el) {
         el.classList.remove('active');
       });
-      document.getElementById(mode === 'company' ? 'company_fields' : mode === 'proxy' ? 'proxy_fields' : 'user_fields').classList.add('active');
+      var fieldMap = { sia: 'sia_fields', user: 'user_fields', company: 'company_fields', proxy: 'proxy_fields' };
+      document.getElementById(fieldMap[mode]).classList.add('active');
+      document.getElementById('api_key_group').style.display = (mode === 'user' || mode === 'company') ? 'block' : 'none';
     }
 
     function doLogin() {
@@ -172,7 +211,12 @@
         api_key: document.getElementById('api_key').value.trim()
       };
 
-      if (mode === 'user') {
+      if (mode === 'sia') {
+        data.sia_hub_name = document.getElementById('sia_hub_name').value.trim();
+        data.sia_port = document.getElementById('sia_port').value.trim();
+        data.sia_account = document.getElementById('sia_account').value.trim();
+        data.sia_encryption_key = document.getElementById('sia_encryption_key').value.trim();
+      } else if (mode === 'user') {
         data.email = document.getElementById('email').value.trim();
         data.password = document.getElementById('password').value;
         data.user_role = document.getElementById('user_role').value;

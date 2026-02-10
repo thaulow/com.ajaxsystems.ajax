@@ -6,7 +6,8 @@ import { AjaxCoordinator } from './lib/ajax-coordinator';
 import { AjaxSqsClient } from './lib/sqs-client';
 import { AjaxSseClient } from './lib/sse-client';
 import { AjaxEventHandler } from './lib/event-handler';
-import { AuthCredentials, SessionState, SqsConfig, PollingConfig } from './lib/types';
+import { SiaServer, SiaServerConfig } from './lib/sia-server';
+import { AuthCredentials, SessionState, SqsConfig, PollingConfig, SiaConfig } from './lib/types';
 
 module.exports = class AjaxApp extends Homey.App {
 
@@ -14,24 +15,33 @@ module.exports = class AjaxApp extends Homey.App {
   private coordinator!: AjaxCoordinator;
   private sqsClient: AjaxSqsClient | null = null;
   private sseClient: AjaxSseClient | null = null;
+  private siaServer: SiaServer | null = null;
   private eventHandler!: AjaxEventHandler;
 
   async onInit(): Promise<void> {
     this.log('Ajax Systems app initializing...');
 
-    // Try to initialize if credentials are available
-    const credentials = this.getCredentials();
-    if (credentials) {
-      await this.initializeClients(credentials);
+    const mode = this.homey.settings.get('auth_mode') as string;
+
+    if (mode === 'sia') {
+      // SIA mode: start the SIA TCP server instead of API clients
+      await this.initializeSia();
     } else {
-      this.log('No credentials configured yet. Waiting for settings.');
+      // API-based modes
+      const credentials = this.getCredentials();
+      if (credentials) {
+        await this.initializeClients(credentials);
+      } else {
+        this.log('No credentials configured yet. Waiting for settings.');
+      }
     }
 
     // Listen for settings changes
     this.homey.settings.on('set', (key: string) => {
       if (['auth_mode', 'api_key', 'email', 'password', 'company_id',
            'company_token', 'proxy_url', 'sqs_enabled',
-           'poll_armed', 'poll_disarmed'].includes(key)) {
+           'poll_armed', 'poll_disarmed',
+           'sia_port', 'sia_account', 'sia_encryption_key'].includes(key)) {
         this.log(`Setting "${key}" changed, reinitializing...`);
         this.reinitialize().catch(err => this.error('Reinitialize failed:', err));
       }
@@ -43,6 +53,7 @@ module.exports = class AjaxApp extends Homey.App {
   async onUninit(): Promise<void> {
     this.log('Ajax Systems app shutting down...');
     this.destroyClients();
+    this.destroySiaServer();
   }
 
   // ============================================================
@@ -57,19 +68,77 @@ module.exports = class AjaxApp extends Homey.App {
     return this.coordinator;
   }
 
+  getSiaServer(): SiaServer | null {
+    return this.siaServer;
+  }
+
   isReady(): boolean {
+    const mode = this.homey.settings.get('auth_mode') as string;
+    if (mode === 'sia') {
+      return !!this.siaServer?.isRunning();
+    }
     return !!this.api && !!this.coordinator;
   }
 
   // ============================================================
-  // Initialization
+  // SIA Mode
+  // ============================================================
+
+  async startSiaServer(config: SiaServerConfig): Promise<void> {
+    this.destroySiaServer();
+
+    this.siaServer = new SiaServer(
+      config,
+      this.log.bind(this),
+      this.error.bind(this),
+    );
+
+    await this.siaServer.start();
+    this.log(`SIA server started on port ${config.port} for account ${config.accountId}`);
+
+    // Emit event so hub devices can subscribe
+    this.emit('siaServerReady', this.siaServer);
+  }
+
+  private async initializeSia(): Promise<void> {
+    const port = this.homey.settings.get('sia_port') as number;
+    const accountId = this.homey.settings.get('sia_account') as string;
+    const encryptionKey = this.homey.settings.get('sia_encryption_key') as string;
+
+    if (!port || !accountId) {
+      this.log('SIA settings incomplete, waiting for configuration');
+      return;
+    }
+
+    try {
+      await this.startSiaServer({
+        port,
+        accountId,
+        encryptionKey: encryptionKey || undefined,
+      });
+    } catch (err) {
+      this.error('Failed to start SIA server:', (err as Error).message);
+    }
+  }
+
+  private destroySiaServer(): void {
+    if (this.siaServer) {
+      this.siaServer.stop();
+      this.siaServer.removeAllListeners();
+      this.siaServer = null;
+    }
+  }
+
+  // ============================================================
+  // API Mode - Initialization
   // ============================================================
 
   private getCredentials(): AuthCredentials | null {
     const mode = this.homey.settings.get('auth_mode') as string;
     const apiKey = this.homey.settings.get('api_key') as string;
 
-    if (!mode || !apiKey) return null;
+    if (!mode || mode === 'sia') return null;
+    if (!apiKey) return null;
 
     const credentials: AuthCredentials = {
       mode: mode as AuthCredentials['mode'],
@@ -153,7 +222,6 @@ module.exports = class AjaxApp extends Homey.App {
       }
     } catch (err) {
       this.error('Login failed:', (err as Error).message);
-      // Don't throw - coordinator will handle auth errors
     }
 
     // Create event handler
@@ -239,12 +307,20 @@ module.exports = class AjaxApp extends Homey.App {
   }
 
   private async reinitialize(): Promise<void> {
-    const credentials = this.getCredentials();
-    if (credentials) {
-      await this.initializeClients(credentials);
-    } else {
+    const mode = this.homey.settings.get('auth_mode') as string;
+
+    if (mode === 'sia') {
       this.destroyClients();
-      this.log('Credentials incomplete, clients destroyed');
+      await this.initializeSia();
+    } else {
+      this.destroySiaServer();
+      const credentials = this.getCredentials();
+      if (credentials) {
+        await this.initializeClients(credentials);
+      } else {
+        this.destroyClients();
+        this.log('Credentials incomplete, clients destroyed');
+      }
     }
   }
 

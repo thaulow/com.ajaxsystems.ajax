@@ -4,7 +4,7 @@
 // Authentication
 // ============================================================
 
-export type AuthMode = 'user' | 'company' | 'proxy';
+export type AuthMode = 'user' | 'company' | 'proxy' | 'sia';
 export type UserRole = 'USER' | 'PRO';
 
 export interface LoginRequest {
@@ -44,6 +44,20 @@ export interface AuthCredentials {
   // Proxy mode
   proxyUrl?: string;
   verifySsl?: boolean;
+  // SIA mode
+  siaPort?: number;
+  siaAccountId?: string;
+  siaEncryptionKey?: string;
+}
+
+// ============================================================
+// SIA Configuration
+// ============================================================
+
+export interface SiaConfig {
+  port: number;
+  accountId: string;
+  encryptionKey?: string;
 }
 
 export interface SessionState {
