@@ -15,8 +15,12 @@ module.exports = class GroupDriver extends Homey.Driver {
         throw new Error('App not ready. Please add a hub first.');
       }
 
-      const api = app.getApi();
       const coordinator = app.getCoordinator();
+      if (!coordinator) {
+        throw new Error('Group pairing is not available in SIA mode. SIA events are received through the hub device.');
+      }
+
+      const api = app.getApi();
       const devices: any[] = [];
 
       for (const hubId of coordinator.getAllHubIds()) {

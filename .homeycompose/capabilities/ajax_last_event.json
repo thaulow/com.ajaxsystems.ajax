@@ -1,7 +1,7 @@
 {
-  "type": "boolean",
+  "type": "string",
   "title": {
-    "en": "Online"
+    "en": "Last Event"
   },
   "getable": true,
   "setable": false,

@@ -279,13 +279,23 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
     );
   }
 
-  // Parse the content
-  // Format: *PROTOCOL SEQNO RRCVR LPREF #ACCT[DATA]
-  // Or: SIA-DCS"SEQNO"RRCVR"LPREF"#ACCT[DATA]
-  // The separators can be " or | or space
+  // Strip encryption indicator (* prefix) for parsing
+  // SIA DC-09 uses * before protocol name to indicate unencrypted messages
+  let cleanContent = content;
+  if (cleanContent.startsWith('*')) {
+    cleanContent = cleanContent.substring(1);
+  }
 
-  // Handle NULL/heartbeat messages
-  if (content.startsWith('NULL')) {
+  // Parse protocol and fields (handles all protocols including NULL)
+  let protocol = '';
+  let sequence = '';
+  let receiver = '';
+  let linePrefix = '';
+  let account = '';
+  let eventData = '';
+
+  // Handle bare NULL (heartbeat with no account/fields)
+  if (cleanContent === 'NULL' || cleanContent === 'NULL[]') {
     return {
       raw: content,
       sequence: '',
@@ -298,49 +308,38 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
     };
   }
 
-  // Parse protocol and fields
-  // Common format: SIA-DCS"SEQNO"RRCVR"LPREF"#ACCT[DATA]
-  // Or: ADM-CID"SEQNO"RRCVR"LPREF"#ACCT[DATA]
-  // Or with | separator: SIA-DCS|"SEQNO"|RRCVR|LPREF|#ACCT[DATA]
-
-  let protocol = '';
-  let sequence = '';
-  let receiver = '';
-  let linePrefix = '';
-  let account = '';
-  let eventData = '';
-
   // Try standard SIA DC-09 format with quotes as separators
-  const siaMatch = content.match(
-    /^(SIA-DCS|ADM-CID|NULL)"(\w*)"(R\w*)"(L\w*)"#([\w]+)\[(.*)?\]?$/,
+  // Handles all protocols: SIA-DCS, ADM-CID, NULL (with fields)
+  const siaMatch = cleanContent.match(
+    /^(SIA-DCS|ADM-CID|NULL)"(\w*)"(R\w*)"(L\w*)"#([\w]+)\[([^\]]*)\]?$/,
   );
   if (siaMatch) {
     [, protocol, sequence, receiver, linePrefix, account, eventData] = siaMatch;
   } else {
     // Try alternate formats with | separators
-    const altMatch = content.match(
-      /^(SIA-DCS|ADM-CID|NULL)\|?"?(\w*)"?\|?(R\w*)\|?"?(L\w*)"?\|?#([\w]+)\[(.*)?\]?$/,
+    const altMatch = cleanContent.match(
+      /^(SIA-DCS|ADM-CID|NULL)\|?"?(\w*)"?\|?(R\w*)\|?"?(L\w*)"?\|?#([\w]+)\[([^\]]*)\]?$/,
     );
     if (altMatch) {
       [, protocol, sequence, receiver, linePrefix, account, eventData] = altMatch;
     } else {
       // Try loose parse - just extract what we can
-      const looseProto = content.match(/^(SIA-DCS|ADM-CID|NULL)/);
+      const looseProto = cleanContent.match(/^(SIA-DCS|ADM-CID|NULL)/);
       protocol = looseProto ? looseProto[1] : 'UNKNOWN';
 
-      const acctMatch = content.match(/#([\w]+)/);
+      const acctMatch = cleanContent.match(/#([\w]+)/);
       account = acctMatch ? acctMatch[1] : '';
 
-      const dataMatch = content.match(/\[(.+?)\]/);
+      const dataMatch = cleanContent.match(/\[([^\]]*)\]/);
       eventData = dataMatch ? dataMatch[1] : '';
 
-      const seqMatch = content.match(/"(\d+)"/);
+      const seqMatch = cleanContent.match(/"(\d+)"/);
       sequence = seqMatch ? seqMatch[1] : '';
 
-      const recvMatch = content.match(/(R[\w]+)/);
+      const recvMatch = cleanContent.match(/(R[\w]+)/);
       receiver = recvMatch ? recvMatch[1] : 'R0';
 
-      const lpMatch = content.match(/(L[\w]+)/);
+      const lpMatch = cleanContent.match(/(L[\w]+)/);
       linePrefix = lpMatch ? lpMatch[1] : 'L0';
     }
   }
@@ -431,10 +430,12 @@ export function buildSiaAck(message: SiaMessage): Buffer {
   const timestamp = `_${pad2(ts.getHours())}:${pad2(ts.getMinutes())}:${pad2(ts.getSeconds())},${pad2(ts.getMonth() + 1)}-${pad2(ts.getDate())}-${ts.getFullYear()}`;
 
   let ackContent: string;
-  if (message.protocol === 'NULL') {
-    ackContent = 'ACK';
-  } else {
+  if (message.sequence || message.account) {
+    // Full ACK with all fields (works for all protocols including NULL with fields)
     ackContent = `ACK"${message.sequence}"${message.receiver}"${message.linePrefix}"#${message.account}[]`;
+  } else {
+    // Simple ACK for bare NULL messages without fields
+    ackContent = 'ACK';
   }
 
   const contentWithQuotes = `"${ackContent}"`;

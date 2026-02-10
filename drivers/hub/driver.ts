@@ -67,14 +67,82 @@ module.exports = class HubDriver extends Homey.Driver {
 
       const mode = data.auth_mode || 'user';
 
-      // SIA mode: no API call needed, just validate and store config
+      // SIA mode: start server and wait for hub to connect
       if (mode === 'sia') {
         const port = parseInt(data.sia_port) || 5000;
         const accountId = (data.sia_account || '').trim();
         const hubName = (data.sia_hub_name || '').trim();
 
         if (!accountId) throw new Error('Account ID is required');
+        if (!hubName) throw new Error('Hub name is required');
         if (port < 1024 || port > 65535) throw new Error('Port must be between 1024 and 65535');
+
+        // Start the SIA server and wait for a message from the hub
+        const app = this.homey.app as any;
+        if (!app?.startSiaServer) {
+          throw new Error('App not ready');
+        }
+
+        try {
+          await app.startSiaServer({
+            port,
+            accountId,
+            encryptionKey: data.sia_encryption_key || undefined,
+          });
+        } catch (err) {
+          throw new Error(`Failed to start SIA server on port ${port}: ${(err as Error).message}`);
+        }
+
+        // Wait up to 60 seconds for the hub to send a message
+        const siaServer = app.getSiaServer();
+        if (!siaServer) {
+          throw new Error('SIA server failed to start');
+        }
+
+        this.log('SIA server started, waiting for hub to connect...');
+
+        const received = await new Promise<boolean>((resolve) => {
+          const timeout = this.homey.setTimeout(() => {
+            cleanup();
+            resolve(false);
+          }, 60_000);
+
+          const onEvent = () => {
+            cleanup();
+            resolve(true);
+          };
+
+          const onHeartbeat = () => {
+            cleanup();
+            resolve(true);
+          };
+
+          const onConnected = () => {
+            cleanup();
+            resolve(true);
+          };
+
+          const cleanup = () => {
+            this.homey.clearTimeout(timeout);
+            siaServer.removeListener('event', onEvent);
+            siaServer.removeListener('heartbeat', onHeartbeat);
+            siaServer.removeListener('connected', onConnected);
+          };
+
+          siaServer.on('event', onEvent);
+          siaServer.on('heartbeat', onHeartbeat);
+          siaServer.on('connected', onConnected);
+        });
+
+        if (!received) {
+          throw new Error(
+            'No connection received from hub within 60 seconds. '
+            + 'Please verify your hub\'s Monitoring Station settings: '
+            + `IP should be your Homey\'s address, port ${port}, account ${accountId}.`
+          );
+        }
+
+        this.log('SIA: hub connected successfully');
 
         // Save SIA settings
         this.homey.settings.set('auth_mode', 'sia');
@@ -84,25 +152,11 @@ module.exports = class HubDriver extends Homey.Driver {
 
         // Store for list_devices handler
         this.siaLoginData = {
-          hubName: hubName || `Ajax Hub (SIA)`,
+          hubName: hubName,
           port,
           accountId,
           encryptionKey: data.sia_encryption_key || '',
         };
-
-        // Tell the app to start/restart the SIA server
-        const app = this.homey.app as any;
-        if (app?.startSiaServer) {
-          try {
-            await app.startSiaServer({
-              port,
-              accountId,
-              encryptionKey: data.sia_encryption_key || undefined,
-            });
-          } catch (err) {
-            throw new Error(`Failed to start SIA server: ${(err as Error).message}`);
-          }
-        }
 
         return true;
       }
@@ -193,8 +247,12 @@ module.exports = class HubDriver extends Homey.Driver {
           capabilities: [
             'homealarm_state',
             'ajax_night_mode',
+            'alarm_generic',
+            'alarm_fire',
+            'alarm_water',
             'alarm_tamper',
             'ajax_connection_state',
+            'ajax_last_event',
           ],
         }];
       }

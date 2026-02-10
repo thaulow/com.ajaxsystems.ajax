@@ -65,8 +65,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     // Set initial state
     await this.safeSetCapability('homealarm_state', 'disarmed');
     await this.safeSetCapability('ajax_night_mode', false);
+    await this.safeSetCapability('alarm_generic', false);
+    await this.safeSetCapability('alarm_fire', false);
+    await this.safeSetCapability('alarm_water', false);
     await this.safeSetCapability('alarm_tamper', false);
     await this.safeSetCapability('ajax_connection_state', false);
+    await this.safeSetCapability('ajax_last_event', 'Waiting for events...');
 
     // Subscribe to SIA events from the app
     const app = this.getApp();
@@ -131,15 +135,30 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     this.resetSiaHeartbeatTimer();
 
+    // Build event description for the last event capability
+    const zoneInfo = event.zone > 0 ? ` (zone ${event.zone})` : '';
+    const eventText = `${event.description}${zoneInfo}`;
+    this.safeSetCapability('ajax_last_event', eventText);
+
     switch (event.type) {
       case 'arm':
         this.safeSetCapability('homealarm_state', 'armed');
         this.safeSetCapability('ajax_night_mode', false);
+        // Clear alarms on arm
+        this.safeSetCapability('alarm_generic', false);
+        this.safeSetCapability('alarm_fire', false);
+        this.safeSetCapability('alarm_water', false);
+        this.safeSetCapability('alarm_tamper', false);
         break;
 
       case 'disarm':
         this.safeSetCapability('homealarm_state', 'disarmed');
         this.safeSetCapability('ajax_night_mode', false);
+        // Clear alarms on disarm
+        this.safeSetCapability('alarm_generic', false);
+        this.safeSetCapability('alarm_fire', false);
+        this.safeSetCapability('alarm_water', false);
+        this.safeSetCapability('alarm_tamper', false);
         break;
 
       case 'night_arm':
@@ -156,6 +175,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
       case 'tamper':
         this.safeSetCapability('alarm_tamper', true);
+        this.safeSetCapability('alarm_generic', true);
         break;
 
       case 'tamper_restore':
@@ -163,6 +183,16 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         break;
 
       case 'alarm':
+        // Set the generic alarm
+        this.safeSetCapability('alarm_generic', true);
+
+        // Set specific alarm type based on CID category
+        if (event.category === 'fire') {
+          this.safeSetCapability('alarm_fire', true);
+        } else if (event.category === 'water') {
+          this.safeSetCapability('alarm_water', true);
+        }
+
         // Trigger the alarm flow card
         this.homey.flow.getTriggerCard('alarm_event')
           ?.trigger(this, {
@@ -174,6 +204,22 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         break;
 
       case 'alarm_restore':
+        // Clear specific alarm type based on CID category
+        if (event.category === 'fire') {
+          this.safeSetCapability('alarm_fire', false);
+        } else if (event.category === 'water') {
+          this.safeSetCapability('alarm_water', false);
+        }
+        // Check if all alarms are cleared
+        this.checkAndClearGenericAlarm();
+        break;
+
+      case 'trouble':
+        this.safeSetCapability('alarm_generic', true);
+        break;
+
+      case 'trouble_restore':
+        this.checkAndClearGenericAlarm();
         break;
 
       case 'test':
@@ -190,6 +236,15 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     this.resetSiaHeartbeatTimer();
     this.safeSetCapability('ajax_connection_state', true);
     this.setAvailable().catch(this.error);
+  }
+
+  private checkAndClearGenericAlarm(): void {
+    const fire = this.getCapabilityValue('alarm_fire');
+    const water = this.getCapabilityValue('alarm_water');
+    const tamper = this.getCapabilityValue('alarm_tamper');
+    if (!fire && !water && !tamper) {
+      this.safeSetCapability('alarm_generic', false);
+    }
   }
 
   private resetSiaHeartbeatTimer(): void {

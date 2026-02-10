@@ -167,6 +167,7 @@ export class SiaServer extends EventEmitter {
 
     socket.on('data', (data: Buffer) => {
       buffer = Buffer.concat([buffer, data]);
+      this.log('SIA raw data received:', data.toString('hex'), '|', data.toString('ascii').replace(/[\r\n]/g, '\\n'));
 
       // Process complete messages (terminated by CR = 0x0D)
       let crIndex: number;
@@ -184,6 +185,12 @@ export class SiaServer extends EventEmitter {
     });
 
     socket.on('close', () => {
+      // Process any remaining data in buffer (hub may close without trailing CR)
+      if (buffer.length > 0) {
+        this.log('SIA processing remaining buffer on close:', buffer.toString('hex'));
+        this.processMessage(buffer, socket);
+        buffer = Buffer.alloc(0);
+      }
       this.log('SIA connection closed:', address);
       this.emit('disconnected', address);
     });
@@ -214,15 +221,21 @@ export class SiaServer extends EventEmitter {
         return;
       }
 
-      // Check account match if configured
-      if (this.config.accountId && message.account &&
-          message.account !== this.config.accountId) {
-        this.log(`SIA: ignoring message for account ${message.account} (expected ${this.config.accountId})`);
-        return;
+      this.log(`SIA parsed: proto=${message.protocol} seq=${message.sequence} acct=${message.account} recv=${message.receiver} line=${message.linePrefix} crc=${message.crcValid ? 'OK' : 'FAIL'}`);
+
+      // Check account match if configured (lenient: strip leading zeros for comparison)
+      if (this.config.accountId && message.account) {
+        const configAcct = this.config.accountId.replace(/^0+/, '') || '0';
+        const msgAcct = message.account.replace(/^0+/, '') || '0';
+        if (configAcct !== msgAcct) {
+          this.log(`SIA: ignoring message for account ${message.account} (expected ${this.config.accountId})`);
+          return;
+        }
       }
 
       // Send ACK
       const ack = buildSiaAck(message);
+      this.log('SIA sending ACK:', ack.toString('ascii').replace(/[\r\n]/g, '\\n'), '| hex:', ack.toString('hex'));
       socket.write(ack);
 
       // Handle the message

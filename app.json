@@ -1058,13 +1058,7 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/capabilities/connection.svg",
-      "insights": true,
-      "insightsTitleTrue": {
-        "en": "Online"
-      },
-      "insightsTitleFalse": {
-        "en": "Offline"
-      }
+      "insights": false
     },
     "ajax_extra_contact": {
       "type": "boolean",
@@ -1126,6 +1120,17 @@
       "min": 0,
       "max": 100,
       "step": 1,
+      "insights": false
+    },
+    "ajax_last_event": {
+      "type": "string",
+      "title": {
+        "en": "Last Event"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/connection.svg",
       "insights": false
     },
     "ajax_night_mode": {

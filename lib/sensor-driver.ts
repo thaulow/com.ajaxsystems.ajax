@@ -24,6 +24,10 @@ export class AjaxSensorDriver extends Homey.Driver {
       }
 
       const coordinator = app.getCoordinator();
+      if (!coordinator) {
+        throw new Error('Individual device pairing is not available in SIA mode. SIA events are received through the hub device.');
+      }
+
       const devices: any[] = [];
 
       for (const hubId of coordinator.getAllHubIds()) {

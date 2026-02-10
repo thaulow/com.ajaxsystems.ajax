@@ -184,7 +184,7 @@
     </div>
   </div>
 
-  <button id="btn_login" onclick="doLogin()">Connect</button>
+  <button id="btn_login" onclick="doLogin()">Set Up</button>
   <div id="error" class="error"></div>
 
   <script>
@@ -196,16 +196,16 @@
       var fieldMap = { sia: 'sia_fields', user: 'user_fields', company: 'company_fields', proxy: 'proxy_fields' };
       document.getElementById(fieldMap[mode]).classList.add('active');
       document.getElementById('api_key_group').style.display = (mode === 'user' || mode === 'company') ? 'block' : 'none';
+      document.getElementById('btn_login').textContent = mode === 'sia' ? 'Set Up' : 'Connect';
     }
 
     function doLogin() {
       var btn = document.getElementById('btn_login');
       var errEl = document.getElementById('error');
-      btn.disabled = true;
-      btn.textContent = 'Connecting...';
-      errEl.style.display = 'none';
-
       var mode = document.getElementById('auth_mode').value;
+      btn.disabled = true;
+      btn.textContent = mode === 'sia' ? 'Waiting for hub connection...' : 'Connecting...';
+      errEl.style.display = 'none';
       var data = {
         auth_mode: mode,
         api_key: document.getElementById('api_key').value.trim()
@@ -234,7 +234,7 @@
           errEl.textContent = err.message || 'Connection failed';
           errEl.style.display = 'block';
           btn.disabled = false;
-          btn.textContent = 'Connect';
+          btn.textContent = mode === 'sia' ? 'Set Up' : 'Connect';
           return;
         }
         Homey.showView('list_devices');
