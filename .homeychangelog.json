@@ -16,5 +16,8 @@
   },
   "1.0.6": {
     "en": "bugfixes"
+  },
+  "1.0.7": {
+    "en": "Fix SIA retries"
   }
 }
