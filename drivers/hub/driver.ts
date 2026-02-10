@@ -25,39 +25,47 @@ module.exports = class HubDriver extends Homey.Driver {
       });
 
     // Register flow action cards
+    // Note: These only work in API mode. SIA is receive-only (hub → Homey),
+    // so commands cannot be sent back to the hub over SIA.
     this.homey.flow.getActionCard('arm_hub')
       .registerRunListener(async (args) => {
-        const device = args.device;
-        await device.triggerCapabilityListener('homealarm_state', 'armed');
+        this.requireApiMode(args.device);
+        await args.device.triggerCapabilityListener('homealarm_state', 'armed');
       });
 
     this.homey.flow.getActionCard('disarm_hub')
       .registerRunListener(async (args) => {
-        const device = args.device;
-        await device.triggerCapabilityListener('homealarm_state', 'disarmed');
+        this.requireApiMode(args.device);
+        await args.device.triggerCapabilityListener('homealarm_state', 'disarmed');
       });
 
     this.homey.flow.getActionCard('night_mode_on')
       .registerRunListener(async (args) => {
-        const device = args.device;
-        await device.triggerCapabilityListener('ajax_night_mode', true);
+        this.requireApiMode(args.device);
+        await args.device.triggerCapabilityListener('ajax_night_mode', true);
       });
 
     this.homey.flow.getActionCard('night_mode_off')
       .registerRunListener(async (args) => {
-        const device = args.device;
-        await device.triggerCapabilityListener('ajax_night_mode', false);
+        this.requireApiMode(args.device);
+        await args.device.triggerCapabilityListener('ajax_night_mode', false);
       });
 
     this.homey.flow.getActionCard('mute_fire_detectors')
       .registerRunListener(async (args) => {
+        this.requireApiMode(args.device);
         const app = this.homey.app as any;
         if (!app?.isReady()) throw new Error('App not ready');
         const api = app.getApi();
-        if (!api) throw new Error('Mute fire detectors is not available in SIA mode.');
         const hubId = args.device.getData().hubId;
         await api.muteFireDetectors(hubId);
       });
+  }
+
+  private requireApiMode(device: any): void {
+    if (device.getStoreValue('connectionMode') === 'sia') {
+      throw new Error('This action is not available in SIA mode. SIA is receive-only — use the Ajax app or keypad to control your system.');
+    }
   }
 
   async onPair(session: Homey.Driver.PairSession): Promise<void> {
@@ -229,7 +237,12 @@ module.exports = class HubDriver extends Homey.Driver {
             'alarm_generic',
             'alarm_fire',
             'alarm_water',
+            'alarm_co',
             'alarm_tamper',
+            'alarm_battery',
+            'ajax_ac_power',
+            'ajax_device_lost',
+            'ajax_rf_interference',
             'ajax_connection_state',
             'ajax_last_event',
           ],

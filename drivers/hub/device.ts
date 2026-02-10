@@ -73,14 +73,16 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   private async initSiaMode(): Promise<void> {
     this.log('Hub device running in SIA mode');
 
-    // Register capability listeners (SIA is receive-only, commands are not available)
-    this.registerCapabilityListener('homealarm_state', async () => {
-      throw new Error('Arm/disarm is not available in SIA mode. Use the Ajax app or keypad to control your system.');
-    });
+    // SIA is receive-only (hub → Homey). Make interactive capabilities
+    // read-only so they display as sensors instead of controls.
+    await this.setCapabilityOptions('ajax_night_mode', {
+      uiComponent: 'sensor',
+      setable: false,
+    }).catch(this.error);
 
-    this.registerCapabilityListener('ajax_night_mode', async () => {
-      throw new Error('Night mode control is not available in SIA mode. Use the Ajax app or keypad to control your system.');
-    });
+    await this.setCapabilityOptions('homealarm_state', {
+      setable: false,
+    }).catch(this.error);
 
     // Set initial state
     await this.safeSetCapability('homealarm_state', 'disarmed');
@@ -445,6 +447,16 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   // ============================================================
 
   private async initApiMode(): Promise<void> {
+    // Ensure capabilities are interactive (in case device was previously SIA)
+    await this.setCapabilityOptions('ajax_night_mode', {
+      uiComponent: 'toggle',
+      setable: true,
+    }).catch(this.error);
+
+    await this.setCapabilityOptions('homealarm_state', {
+      setable: true,
+    }).catch(this.error);
+
     // Register capability listeners
     this.registerCapabilityListener('homealarm_state', async (value: string) => {
       await this.onAlarmStateSet(value);
