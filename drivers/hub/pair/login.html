@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      color: inherit;
+      background: transparent;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+      color: inherit;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      opacity: 0.7;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid rgba(128,128,128,0.3);
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: rgba(128,128,128,0.1);
+      color: inherit;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: rgba(128,128,128,0.6);
+      background: rgba(128,128,128,0.15);
+    }
+    input::placeholder {
+      color: rgba(128,128,128,0.6);
+    }
+    option {
+      background: #222;
+      color: #fff;
+    }
+    .hint {
+      font-size: 11px;
+      opacity: 0.5;
+      margin-top: 4px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .error {
+      color: #e74c3c;
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+    .mode-fields {
+      display: none;
+    }
+    .mode-fields.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 20" height="32" fill="currentColor" aria-label="Ajax logo"><path d="M74.69.88h-5.3l21.25 19.11h5.3L74.69.88M80.83 14.48l-6.13 5.51h-5.3l6.12-5.51h5.31M89.82 6.39L95.95.88h-5.3l-6.13 5.51h5.3M13.28.88l-2.17 3.11 11.07 16h4.38L13.28.88M7.66 8.97H12L4.38 19.99H0L7.66 8.97M53.24.88l-2.17 3.11 11.07 16h4.38L53.24.88M47.62 8.97h4.34l-7.62 11.02h-4.38l7.66-11.02M35.23.88l.01 11.7c-.01 1.9-.9 4.27-3.89 4.47h-1.09v2.94s.95 0 1.57.01c1.44.02 3.52-.68 4.81-2.06 1.81-1.92 2.03-4.37 2.03-5.55V.88h-3.44"></path></svg>
+  </div>
+
+  <div class="form-group">
+    <label>Connection Mode</label>
+    <select id="auth_mode" onchange="toggleMode()">
+      <option value="user">User Mode (API Key + Login)</option>
+      <option value="company">Company Mode (Company Token)</option>
+      <option value="proxy">Proxy Mode (Custom Server)</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>API Key</label>
+    <input type="text" id="api_key" placeholder="Your Ajax Enterprise API key" />
+    <div class="hint">X-Api-Key from Ajax Systems Enterprise API</div>
+  </div>
+
+  <!-- User Mode Fields -->
+  <div id="user_fields" class="mode-fields active">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="Ajax account email" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Ajax account password" />
+    </div>
+    <div class="form-group">
+      <label>User Role</label>
+      <select id="user_role">
+        <option value="USER">User</option>
+        <option value="PRO">PRO (Installer)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Company Mode Fields -->
+  <div id="company_fields" class="mode-fields">
+    <div class="form-group">
+      <label>Company ID</label>
+      <input type="text" id="company_id" placeholder="Your company identifier" />
+    </div>
+    <div class="form-group">
+      <label>Company Token</label>
+      <input type="password" id="company_token" placeholder="X-Company-Token" />
+    </div>
+  </div>
+
+  <!-- Proxy Mode Fields -->
+  <div id="proxy_fields" class="mode-fields">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="proxy_email" placeholder="Ajax account email" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="proxy_password" placeholder="Ajax account password" />
+    </div>
+    <div class="form-group">
+      <label>Proxy URL</label>
+      <input type="url" id="proxy_url" placeholder="https://your-proxy-server.com" />
+    </div>
+  </div>
+
+  <button id="btn_login" onclick="doLogin()">Connect</button>
+  <div id="error" class="error"></div>
+
+  <script>
+    function toggleMode() {
+      var mode = document.getElementById('auth_mode').value;
+      document.querySelectorAll('.mode-fields').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      document.getElementById(mode === 'company' ? 'company_fields' : mode === 'proxy' ? 'proxy_fields' : 'user_fields').classList.add('active');
+    }
+
+    function doLogin() {
+      var btn = document.getElementById('btn_login');
+      var errEl = document.getElementById('error');
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+      errEl.style.display = 'none';
+
+      var mode = document.getElementById('auth_mode').value;
+      var data = {
+        auth_mode: mode,
+        api_key: document.getElementById('api_key').value.trim()
+      };
+
+      if (mode === 'user') {
+        data.email = document.getElementById('email').value.trim();
+        data.password = document.getElementById('password').value;
+        data.user_role = document.getElementById('user_role').value;
+      } else if (mode === 'company') {
+        data.company_id = document.getElementById('company_id').value.trim();
+        data.company_token = document.getElementById('company_token').value;
+      } else if (mode === 'proxy') {
+        data.email = document.getElementById('proxy_email').value.trim();
+        data.password = document.getElementById('proxy_password').value;
+        data.proxy_url = document.getElementById('proxy_url').value.trim();
+      }
+
+      Homey.emit('login', data, function(err, result) {
+        if (err) {
+          errEl.textContent = err.message || 'Connection failed';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Connect';
+          return;
+        }
+        Homey.showView('list_devices');
+      });
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') doLogin();
+    });
+  </script>
+</body>
+</html>

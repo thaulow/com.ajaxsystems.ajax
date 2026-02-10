@@ -59,26 +59,39 @@ module.exports = class HubDriver extends Homey.Driver {
   async onPair(session: Homey.Driver.PairSession): Promise<void> {
     let api: AjaxApiClient | null = null;
 
-    session.setHandler('login', async (data: { username: string; password: string }) => {
-      this.log('Pairing: login attempt for', data.username);
+    session.setHandler('login', async (data: any) => {
+      this.log('Pairing: login attempt, mode:', data.auth_mode);
 
-      const apiKey = this.homey.settings.get('api_key') as string;
-      const mode = (this.homey.settings.get('auth_mode') as string) || 'user';
-
-      if (!apiKey && mode !== 'proxy') {
-        throw new Error('Please configure your API key in the app settings first');
-      }
-
+      const mode = data.auth_mode || 'user';
       const credentials: AuthCredentials = {
         mode: mode as AuthCredentials['mode'],
-        apiKey: apiKey || '',
-        email: data.username,
-        password: data.password,
-        userRole: (this.homey.settings.get('user_role') as string || 'USER') as AuthCredentials['userRole'],
+        apiKey: data.api_key || '',
       };
 
-      if (mode === 'proxy') {
-        credentials.proxyUrl = this.homey.settings.get('proxy_url') as string;
+      switch (mode) {
+        case 'user':
+          credentials.email = data.email;
+          credentials.password = data.password;
+          credentials.userRole = (data.user_role || 'USER') as AuthCredentials['userRole'];
+          if (!credentials.apiKey) throw new Error('API Key is required');
+          if (!credentials.email) throw new Error('Email is required');
+          if (!credentials.password) throw new Error('Password is required');
+          break;
+        case 'company':
+          credentials.companyId = data.company_id;
+          credentials.companyToken = data.company_token;
+          if (!credentials.apiKey) throw new Error('API Key is required');
+          if (!credentials.companyId) throw new Error('Company ID is required');
+          if (!credentials.companyToken) throw new Error('Company Token is required');
+          break;
+        case 'proxy':
+          credentials.email = data.email;
+          credentials.password = data.password;
+          credentials.proxyUrl = data.proxy_url;
+          if (!credentials.email) throw new Error('Email is required');
+          if (!credentials.password) throw new Error('Password is required');
+          if (!credentials.proxyUrl) throw new Error('Proxy URL is required');
+          break;
       }
 
       api = new AjaxApiClient(
@@ -87,12 +100,30 @@ module.exports = class HubDriver extends Homey.Driver {
         this.error.bind(this),
       );
 
-      const session_state = await api.login();
+      if (mode !== 'company') {
+        await api.login();
+      }
 
-      // Save credentials to app settings for the main app to use
-      this.homey.settings.set('email', data.username);
-      this.homey.settings.set('password', data.password);
-      this.homey.settings.set('session', session_state);
+      // Save all credentials to app settings so the main app can use them
+      this.homey.settings.set('auth_mode', mode);
+      this.homey.settings.set('api_key', data.api_key || '');
+      if (mode === 'user') {
+        this.homey.settings.set('email', data.email);
+        this.homey.settings.set('password', data.password);
+        this.homey.settings.set('user_role', data.user_role || 'USER');
+      } else if (mode === 'company') {
+        this.homey.settings.set('company_id', data.company_id);
+        this.homey.settings.set('company_token', data.company_token);
+      } else if (mode === 'proxy') {
+        this.homey.settings.set('email', data.email);
+        this.homey.settings.set('password', data.password);
+        this.homey.settings.set('proxy_url', data.proxy_url);
+      }
+
+      const sessionState = api.getSession();
+      if (sessionState) {
+        this.homey.settings.set('session', sessionState);
+      }
 
       return true;
     });
