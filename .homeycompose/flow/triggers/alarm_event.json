@@ -6,6 +6,7 @@
     { "name": "hub_name", "type": "string", "title": { "en": "Hub Name" } },
     { "name": "event_type", "type": "string", "title": { "en": "Event Type" } },
     { "name": "device_name", "type": "string", "title": { "en": "Device Name" } },
-    { "name": "room_name", "type": "string", "title": { "en": "Room Name" } }
+    { "name": "room_name", "type": "string", "title": { "en": "Room Name" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
   ]
 }

@@ -19,7 +19,6 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   private siaDisconnectedBound: ((address: string) => void) | null = null;
   private siaServerReadyBound: ((server: any) => void) | null = null;
   private siaHeartbeatTimer: any = null;
-  private static readonly SIA_HEARTBEAT_TIMEOUT_MS = 300_000; // 5 minutes
 
   async onInit(): Promise<void> {
     this.log('Hub device init:', this.getName());
@@ -215,6 +214,44 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         this.safeSetCapability('alarm_tamper', false);
         break;
 
+      case 'panic':
+        // Panic button alarm - set generic + trigger both flow cards
+        this.safeSetCapability('alarm_generic', true);
+        this.homey.flow.getTriggerCard('panic_alarm')
+          ?.trigger(this, {
+            zone: event.zone,
+            description: event.description,
+          })
+          .catch(this.error);
+        this.homey.flow.getTriggerCard('alarm_event')
+          ?.trigger(this, {
+            event_type: 'panic',
+            device_name: `Zone ${event.zone}`,
+            description: event.description,
+          })
+          .catch(this.error);
+        break;
+
+      case 'duress':
+        // Duress (coerced disarm) - disarm the system but trigger alarm
+        this.safeSetCapability('homealarm_state', 'disarmed');
+        this.safeSetCapability('ajax_night_mode', false);
+        this.safeSetCapability('alarm_generic', true);
+        this.homey.flow.getTriggerCard('duress_alarm')
+          ?.trigger(this, {
+            zone: event.zone,
+            description: event.description,
+          })
+          .catch(this.error);
+        this.homey.flow.getTriggerCard('alarm_event')
+          ?.trigger(this, {
+            event_type: 'duress',
+            device_name: `Zone ${event.zone}`,
+            description: event.description,
+          })
+          .catch(this.error);
+        break;
+
       case 'alarm':
         // Set the generic alarm
         this.safeSetCapability('alarm_generic', true);
@@ -249,10 +286,22 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
       case 'trouble':
         this.safeSetCapability('alarm_generic', true);
+        this.homey.flow.getTriggerCard('alarm_event')
+          ?.trigger(this, {
+            event_type: event.category || 'trouble',
+            device_name: `Zone ${event.zone}`,
+            description: event.description,
+          })
+          .catch(this.error);
         break;
 
       case 'trouble_restore':
         this.checkAndClearGenericAlarm();
+        break;
+
+      case 'system':
+        // System lifecycle events (reboot, firmware update, factory reset)
+        this.log(`SIA system event: ${event.description}`);
         break;
 
       case 'test':
@@ -280,15 +329,30 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     }
   }
 
+  /**
+   * Get the heartbeat timeout in ms based on the configured ping interval.
+   * Returns 0 if "connect on demand" mode (no periodic heartbeats expected).
+   */
+  private getSiaHeartbeatTimeoutMs(): number {
+    // siaPingIntervalMinutes: 0 = connect on demand (no timeout), 1-1440 = ping interval
+    const pingMinutes = this.getStoreValue('siaPingIntervalMinutes') || 0;
+    if (pingMinutes <= 0) return 0; // Connect on demand - no heartbeat watchdog
+    // Allow 3 missed heartbeats before marking offline
+    return pingMinutes * 60_000 * 3;
+  }
+
   private resetSiaHeartbeatTimer(): void {
     if (this.siaHeartbeatTimer) {
       this.homey.clearTimeout(this.siaHeartbeatTimer);
+      this.siaHeartbeatTimer = null;
     }
+    const timeoutMs = this.getSiaHeartbeatTimeoutMs();
+    if (timeoutMs <= 0) return; // Connect on demand - no watchdog
     this.siaHeartbeatTimer = this.homey.setTimeout(() => {
       this.log('SIA heartbeat timeout - hub may be offline');
       this.safeSetCapability('ajax_connection_state', false);
       this.setUnavailable('No heartbeat received from hub').catch(this.error);
-    }, HubDevice.SIA_HEARTBEAT_TIMEOUT_MS);
+    }, timeoutMs);
   }
 
   // ============================================================

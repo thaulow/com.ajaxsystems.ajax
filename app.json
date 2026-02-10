@@ -320,6 +320,38 @@
             "title": {
               "en": "Room Name"
             }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "duress_alarm",
+        "title": {
+          "en": "Duress alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when the system is disarmed under duress (coercion). This is a silent distress signal."
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
           }
         ]
       },
@@ -391,6 +423,31 @@
             "type": "string",
             "title": {
               "en": "Hub Name"
+            }
+          }
+        ]
+      },
+      {
+        "id": "panic_alarm",
+        "title": {
+          "en": "Panic alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when a panic button is pressed on any Ajax device"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
             }
           }
         ]

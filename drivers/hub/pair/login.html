@@ -107,7 +107,8 @@
   <!-- SIA Mode Fields (default) -->
   <div id="sia_fields" class="mode-fields active">
     <div class="info-box">
-      Receive events directly from your Ajax hub over the local network using the SIA DC-09 protocol. Configure your hub's Monitoring Station settings to point to your Homey's IP address and the port below.
+      Receive events directly from your Ajax hub over the local network using the SIA DC-09 protocol.<br><br>
+      <strong>Setup order:</strong> Fill in the fields below and click "Set Up" first. Then open the Ajax app and configure Monitoring Station settings to point to your Homey's IP address with the same port and account. The hub will send a test message to confirm the connection.
     </div>
     <div class="form-group">
       <label>Hub Name</label>
@@ -126,8 +127,23 @@
     </div>
     <div class="form-group">
       <label>Encryption Key (optional)</label>
-      <input type="text" id="sia_encryption_key" placeholder="AES-128 key in hex (leave empty for unencrypted)" />
+      <input type="text" id="sia_encryption_key" placeholder="Up to 32 hex or 16 ASCII characters" />
       <div class="hint">Only needed if you enabled encryption in the hub's Monitoring Station settings</div>
+    </div>
+    <div class="form-group">
+      <label>Monitoring Station Ping (optional)</label>
+      <select id="sia_ping_interval">
+        <option value="0">Connect on demand (default)</option>
+        <option value="1">Every 1 minute</option>
+        <option value="3">Every 3 minutes</option>
+        <option value="5">Every 5 minutes</option>
+        <option value="10">Every 10 minutes</option>
+        <option value="30">Every 30 minutes</option>
+        <option value="60">Every 1 hour</option>
+        <option value="720">Every 12 hours</option>
+        <option value="1440">Every 24 hours</option>
+      </select>
+      <div class="hint">Must match "Monitoring station ping" in your hub settings. Used to detect when the hub goes offline.</div>
     </div>
   </div>
 
@@ -204,7 +220,7 @@
       var errEl = document.getElementById('error');
       var mode = document.getElementById('auth_mode').value;
       btn.disabled = true;
-      btn.textContent = mode === 'sia' ? 'Waiting for hub connection...' : 'Connecting...';
+      btn.textContent = mode === 'sia' ? 'Waiting for hub message... Configure Ajax now' : 'Connecting...';
       errEl.style.display = 'none';
       var data = {
         auth_mode: mode,
@@ -216,6 +232,7 @@
         data.sia_port = document.getElementById('sia_port').value.trim();
         data.sia_account = document.getElementById('sia_account').value.trim();
         data.sia_encryption_key = document.getElementById('sia_encryption_key').value.trim();
+        data.sia_ping_interval = document.getElementById('sia_ping_interval').value;
       } else if (mode === 'user') {
         data.email = document.getElementById('email').value.trim();
         data.password = document.getElementById('password').value;

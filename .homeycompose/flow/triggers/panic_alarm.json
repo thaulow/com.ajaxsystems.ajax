@@ -1,0 +1,9 @@
+{
+  "id": "panic_alarm",
+  "title": { "en": "Panic alarm triggered" },
+  "hint": { "en": "Triggers when a panic button is pressed on any Ajax device" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

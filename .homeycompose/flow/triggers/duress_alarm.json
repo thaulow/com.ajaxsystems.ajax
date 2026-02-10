@@ -1,0 +1,9 @@
+{
+  "id": "duress_alarm",
+  "title": { "en": "Duress alarm triggered" },
+  "hint": { "en": "Triggers when the system is disarmed under duress (coercion). This is a silent distress signal." },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

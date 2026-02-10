@@ -111,21 +111,21 @@ module.exports = class HubDriver extends Homey.Driver {
           }, 120_000);
 
           const onEvent = () => {
-            this.log('SIA pairing: received event');
+            this.log('SIA pairing: received event (ACK exchange confirmed)');
             cleanup();
             resolve(true);
           };
 
           const onHeartbeat = () => {
-            this.log('SIA pairing: received heartbeat');
+            this.log('SIA pairing: received heartbeat (ACK exchange confirmed)');
             cleanup();
             resolve(true);
           };
 
           const onConnected = (addr: string) => {
-            this.log('SIA pairing: received connection from', addr);
-            cleanup();
-            resolve(true);
+            // TCP connect alone is not enough - wait for a full SIA message
+            // exchange (event or heartbeat) to confirm the ACK is valid.
+            this.log('SIA pairing: TCP connection from', addr, '- waiting for SIA message exchange...');
           };
 
           const cleanup = () => {
@@ -142,10 +142,12 @@ module.exports = class HubDriver extends Homey.Driver {
 
         if (!received) {
           throw new Error(
-            'No connection received from hub within 120 seconds. '
+            'No SIA message received from hub within 120 seconds. '
             + 'Please verify your hub\'s Monitoring Station settings: '
             + `IP should be your Homey\'s address, port ${port}, account ${accountId}. `
-            + 'You may need to toggle "Connect on demand" off and on, or restart the hub.'
+            + 'Try: 1) Set monitoring station ping to 1 minute in the Ajax app, '
+            + '2) Tap "Check connection" in the Ajax monitoring station settings, '
+            + '3) Or arm/disarm your system to trigger a message.'
           );
         }
 
@@ -163,6 +165,7 @@ module.exports = class HubDriver extends Homey.Driver {
           port,
           accountId,
           encryptionKey: data.sia_encryption_key || '',
+          pingIntervalMinutes: parseInt(data.sia_ping_interval) || 0,
         };
 
         return true;
@@ -237,7 +240,7 @@ module.exports = class HubDriver extends Homey.Driver {
     session.setHandler('list_devices', async () => {
       // SIA mode: return a single hub with the user-provided name
       if (this.siaLoginData) {
-        const { hubName, port, accountId, encryptionKey } = this.siaLoginData;
+        const { hubName, port, accountId, encryptionKey, pingIntervalMinutes } = this.siaLoginData;
         const hubId = `sia_${accountId}_${port}`;
         return [{
           name: hubName,
@@ -250,6 +253,7 @@ module.exports = class HubDriver extends Homey.Driver {
             siaPort: port,
             siaAccountId: accountId,
             siaEncryptionKey: encryptionKey,
+            siaPingIntervalMinutes: pingIntervalMinutes,
           },
           capabilities: [
             'homealarm_state',

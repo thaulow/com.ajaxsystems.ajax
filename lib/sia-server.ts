@@ -7,14 +7,8 @@ import {
   parseSiaMessage,
   buildSiaAck,
   SiaMessage,
-  CidEvent,
-  isArmEvent,
   isNightArmEvent,
-  isPartialArmEvent,
   isAlarmEvent,
-  isFireAlarm,
-  isBurglaryAlarm,
-  isWaterAlarm,
   isTamperAlarm,
   isTroubleEvent,
   isTestEvent,
@@ -34,7 +28,8 @@ export interface SiaAlarmEvent {
   account: string;
   type: 'arm' | 'disarm' | 'night_arm' | 'night_disarm' | 'partial_arm' |
         'alarm' | 'alarm_restore' | 'tamper' | 'tamper_restore' |
-        'trouble' | 'trouble_restore' | 'test' | 'heartbeat' | 'unknown';
+        'trouble' | 'trouble_restore' | 'test' | 'heartbeat' |
+        'panic' | 'duress' | 'system' | 'unknown';
   /** More specific alarm category */
   category?: string;
   /** CID event code */
@@ -202,6 +197,9 @@ export class SiaServer extends EventEmitter {
     this.log('SIA connection from:', address);
     this.emit('connected', address);
 
+    // Disable Nagle's algorithm so ACK is sent immediately without buffering
+    socket.setNoDelay(true);
+
     // Track socket for cleanup on server stop
     this.sockets.add(socket);
 
@@ -271,7 +269,11 @@ export class SiaServer extends EventEmitter {
       const ack = buildSiaAck(message);
       this.log('SIA sending ACK:', ack.toString('ascii').replace(/[\r\n]/g, '\\n'), '| hex:', ack.toString('hex'));
       if (socket.writable) {
-        socket.write(ack);
+        socket.write(ack, (err) => {
+          if (err) {
+            this.error('SIA: ACK write failed:', err.message);
+          }
+        });
       } else {
         this.log('SIA: socket not writable, cannot send ACK');
       }
@@ -309,11 +311,22 @@ export class SiaServer extends EventEmitter {
     if (!this.config.encryptionKey) return data;
 
     try {
-      // SIA DC-09 uses AES-128-CBC with the key as both key and IV
-      const keyBuf = Buffer.from(this.config.encryptionKey, 'hex');
-      // Pad key to 16 bytes if needed
+      // SIA DC-09 uses AES-128-CBC with the key as both key and IV.
+      // Ajax supports "up to 32 HEX or 16 ASCII characters":
+      //   - 32 hex chars → 16 bytes (AES-128 key)
+      //   - 16 ASCII chars → 16 bytes (AES-128 key)
+      const rawKey = this.config.encryptionKey;
+      let keyBuf: Buffer;
+      if (/^[0-9a-fA-F]+$/.test(rawKey) && rawKey.length <= 32 && rawKey.length % 2 === 0) {
+        // Valid hex string
+        keyBuf = Buffer.from(rawKey, 'hex');
+      } else {
+        // Treat as ASCII
+        keyBuf = Buffer.from(rawKey, 'ascii');
+      }
+      // Pad or truncate to exactly 16 bytes for AES-128
       const key = Buffer.alloc(16);
-      keyBuf.copy(key);
+      keyBuf.copy(key, 0, 0, Math.min(keyBuf.length, 16));
 
       // Find the encrypted portion (between quotes, the data part after account)
       const str = data.toString('ascii');
@@ -375,14 +388,24 @@ export class SiaServer extends EventEmitter {
       raw: message.raw,
     };
 
-    // Determine event type
-    if (isArmEvent(event.code)) {
-      // Qualifier 1 = closing (arming), 3 = opening (disarming)
-      alarmEvent.type = event.qualifier === 1 ? 'arm' : 'disarm';
-    } else if (isNightArmEvent(event.code)) {
-      alarmEvent.type = event.qualifier === 1 ? 'night_arm' : 'night_disarm';
-    } else if (isPartialArmEvent(event.code)) {
-      alarmEvent.type = event.isRestore ? 'disarm' : 'partial_arm';
+    // Determine event type based on category first (from SIA code mapping),
+    // then fall back to CID code range checks for ADM-CID messages.
+    if (event.category === 'duress') {
+      alarmEvent.type = 'duress';
+    } else if (event.category === 'panic') {
+      alarmEvent.type = event.isRestore ? 'alarm_restore' : 'panic';
+    } else if (event.category === 'system') {
+      alarmEvent.type = 'system';
+    } else if (event.category === 'arming') {
+      // Arming events: qualifier 1 = arm, qualifier 3 = disarm
+      if (isNightArmEvent(event.code)) {
+        alarmEvent.type = event.qualifier === 1 ? 'night_arm' : 'night_disarm';
+      } else if (event.code === '455') {
+        // Unsuccessful arming - log it but don't change state
+        alarmEvent.type = 'trouble';
+      } else {
+        alarmEvent.type = event.qualifier === 1 ? 'arm' : 'disarm';
+      }
     } else if (isTamperAlarm(event.code)) {
       alarmEvent.type = event.isRestore ? 'tamper_restore' : 'tamper';
     } else if (isAlarmEvent(event.code)) {

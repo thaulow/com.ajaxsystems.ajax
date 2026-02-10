@@ -29,70 +29,122 @@
 // ============================================================
 
 export const SIA_TO_CID: Record<string, { code: string; qualifier: number; category: string; description: string }> = {
-  // Burglary
+  // ── Burglary / Intrusion ──────────────────────────────────────
   'BA': { code: '130', qualifier: 1, category: 'burglary', description: 'Burglary alarm' },
   'BR': { code: '130', qualifier: 3, category: 'burglary', description: 'Burglary alarm restore' },
   'BB': { code: '570', qualifier: 1, category: 'bypass', description: 'Zone bypass' },
   'BU': { code: '570', qualifier: 3, category: 'bypass', description: 'Zone unbypass' },
   'BT': { code: '370', qualifier: 1, category: 'trouble', description: 'Burglary trouble' },
   'BJ': { code: '370', qualifier: 3, category: 'trouble', description: 'Burglary trouble restore' },
+  'BS': { code: '377', qualifier: 1, category: 'trouble', description: 'Accelerometer malfunction' },
 
-  // Fire
+  // ── Fire ───────────────────────────────────────────────────────
   'FA': { code: '110', qualifier: 1, category: 'fire', description: 'Fire alarm' },
+  'FH': { code: '111', qualifier: 3, category: 'fire', description: 'Fire alarm restore' },
   'FR': { code: '110', qualifier: 3, category: 'fire', description: 'Fire alarm restore' },
-  'FT': { code: '373', qualifier: 1, category: 'trouble', description: 'Fire trouble' },
-  'FJ': { code: '373', qualifier: 3, category: 'trouble', description: 'Fire trouble restore' },
+  'FT': { code: '389', qualifier: 1, category: 'trouble', description: 'Fire sensor hardware failure' },
+  'FJ': { code: '389', qualifier: 3, category: 'trouble', description: 'Fire sensor hardware restore' },
+  'FS': { code: '393', qualifier: 1, category: 'trouble', description: 'Smoke chamber dirty' },
+  'FX': { code: '393', qualifier: 3, category: 'trouble', description: 'Smoke chamber OK' },
+  'KA': { code: '158', qualifier: 1, category: 'fire', description: 'High temperature alarm' },
+  'KH': { code: '158', qualifier: 3, category: 'fire', description: 'Temperature restored' },
 
-  // Water
-  'WA': { code: '153', qualifier: 1, category: 'water', description: 'Water alarm' },
-  'WR': { code: '153', qualifier: 3, category: 'water', description: 'Water alarm restore' },
-  'WT': { code: '153', qualifier: 1, category: 'trouble', description: 'Water trouble' },
+  // ── Water ──────────────────────────────────────────────────────
+  'WA': { code: '154', qualifier: 1, category: 'water', description: 'Water leak detected' },
+  'WH': { code: '154', qualifier: 3, category: 'water', description: 'Water leak restore' },
+  'WR': { code: '154', qualifier: 3, category: 'water', description: 'Water leak restore' },
 
-  // Tamper
-  'TA': { code: '137', qualifier: 1, category: 'tamper', description: 'Tamper alarm' },
-  'TR': { code: '137', qualifier: 3, category: 'tamper', description: 'Tamper alarm restore' },
-  'YA': { code: '144', qualifier: 1, category: 'tamper', description: 'Expansion tamper' },
-  'YR': { code: '144', qualifier: 3, category: 'tamper', description: 'Expansion tamper restore' },
-  'YT': { code: '145', qualifier: 1, category: 'tamper', description: 'Module tamper' },
+  // ── Tamper ─────────────────────────────────────────────────────
+  'TA': { code: '145', qualifier: 1, category: 'tamper', description: 'Lid open / tamper' },
+  'TR': { code: '145', qualifier: 3, category: 'tamper', description: 'Lid closed / tamper restore' },
+  'SM': { code: '144', qualifier: 1, category: 'tamper', description: 'Device moved' },
 
-  // Panic
+  // ── Panic ──────────────────────────────────────────────────────
   'PA': { code: '120', qualifier: 1, category: 'panic', description: 'Panic alarm' },
-  'PR': { code: '120', qualifier: 3, category: 'panic', description: 'Panic alarm restore' },
+  'PH': { code: '120', qualifier: 3, category: 'panic', description: 'Panic alarm restore' },
 
-  // Medical
+  // ── Medical ────────────────────────────────────────────────────
   'MA': { code: '100', qualifier: 1, category: 'medical', description: 'Medical alarm' },
   'MR': { code: '100', qualifier: 3, category: 'medical', description: 'Medical alarm restore' },
 
-  // Gas / CO
-  'GA': { code: '151', qualifier: 1, category: 'gas', description: 'Gas alarm' },
-  'GR': { code: '151', qualifier: 3, category: 'gas', description: 'Gas alarm restore' },
-  'CA': { code: '162', qualifier: 1, category: 'co', description: 'CO detected' },
-  'CF': { code: '162', qualifier: 3, category: 'co', description: 'CO restore' },
+  // ── Gas / CO (Ajax uses GA for both gas and CO from FireProtect Plus) ─
+  'GA': { code: '151', qualifier: 1, category: 'gas', description: 'Gas / CO alarm' },
+  'GH': { code: '151', qualifier: 3, category: 'gas', description: 'Gas / CO alarm restore' },
 
-  // Arming / Disarming
-  'CL': { code: '401', qualifier: 1, category: 'arming', description: 'Armed' },
-  'OP': { code: '401', qualifier: 3, category: 'arming', description: 'Disarmed' },
+  // ── Arming / Disarming (by user via app) ──────────────────────
+  'CL': { code: '400', qualifier: 1, category: 'arming', description: 'Armed' },
+  'OP': { code: '400', qualifier: 3, category: 'arming', description: 'Disarmed' },
   'NL': { code: '441', qualifier: 1, category: 'arming', description: 'Night mode armed' },
-  'NO': { code: '441', qualifier: 3, category: 'arming', description: 'Night mode disarmed' },
-  'CG': { code: '456', qualifier: 1, category: 'arming', description: 'Partial arm' },
-  'OG': { code: '456', qualifier: 3, category: 'arming', description: 'Partial disarm' },
+  'NP': { code: '441', qualifier: 3, category: 'arming', description: 'Night mode deactivated' },
+  'NO': { code: '441', qualifier: 3, category: 'arming', description: 'Night mode disarmed (auto)' },
 
-  // Trouble / System
+  // ── Group arming ──────────────────────────────────────────────
+  'CG': { code: '402', qualifier: 1, category: 'arming', description: 'Group armed' },
+  'OG': { code: '402', qualifier: 3, category: 'arming', description: 'Group disarmed' },
+
+  // ── Auto arming (scenarios) ───────────────────────────────────
+  'CA': { code: '403', qualifier: 1, category: 'arming', description: 'Armed automatically' },
+  'OA': { code: '403', qualifier: 3, category: 'arming', description: 'Disarmed automatically' },
+  'OB': { code: '403', qualifier: 3, category: 'arming', description: 'Group disarmed automatically' },
+  'CB': { code: '403', qualifier: 1, category: 'arming', description: 'Group armed automatically' },
+  'NC': { code: '403', qualifier: 1, category: 'arming', description: 'Night mode armed automatically' },
+
+  // ── Armed with malfunctions ───────────────────────────────────
+  'AF': { code: '401', qualifier: 1, category: 'arming', description: 'Armed with malfunctions' },
+  'CF': { code: '409', qualifier: 1, category: 'arming', description: 'Armed with malfunctions (device)' },
+  'NB': { code: '441', qualifier: 1, category: 'arming', description: 'Night mode armed with malfunctions' },
+  'NF': { code: '441', qualifier: 1, category: 'arming', description: 'Night mode armed with malfunctions (device)' },
+
+  // ── Unsuccessful arming ───────────────────────────────────────
+  'CC': { code: '455', qualifier: 1, category: 'arming', description: 'Unsuccessful arming attempt' },
+  'NE': { code: '455', qualifier: 1, category: 'arming', description: 'Unsuccessful night mode attempt' },
+  'CD': { code: '455', qualifier: 1, category: 'arming', description: 'Unsuccessful group arming attempt' },
+
+  // ── Duress (coerced disarm) ───────────────────────────────────
+  'HA': { code: '423', qualifier: 1, category: 'duress', description: 'Disarmed under duress' },
+  'ND': { code: '423', qualifier: 1, category: 'duress', description: 'Night mode deactivated under duress' },
+
+  // ── Keypad / Auth ─────────────────────────────────────────────
+  'JA': { code: '461', qualifier: 1, category: 'trouble', description: 'Password brute-force attempt' },
+
+  // ── Power / Battery ───────────────────────────────────────────
   'AT': { code: '301', qualifier: 1, category: 'trouble', description: 'AC power loss' },
   'AR': { code: '301', qualifier: 3, category: 'trouble', description: 'AC power restore' },
+  'YT': { code: '302', qualifier: 1, category: 'trouble', description: 'Low battery' },
+  'YR': { code: '302', qualifier: 3, category: 'trouble', description: 'Battery charged' },
   'LB': { code: '302', qualifier: 1, category: 'trouble', description: 'Low battery' },
   'LR': { code: '302', qualifier: 3, category: 'trouble', description: 'Low battery restore' },
-  'YC': { code: '354', qualifier: 1, category: 'communication', description: 'Communication failure' },
-  'YK': { code: '354', qualifier: 3, category: 'communication', description: 'Communication restore' },
-  'XT': { code: '380', qualifier: 1, category: 'trouble', description: 'Sensor trouble' },
-  'XR': { code: '380', qualifier: 3, category: 'trouble', description: 'Sensor trouble restore' },
-  'XE': { code: '381', qualifier: 1, category: 'trouble', description: 'Sensor missing' },
-  'XI': { code: '381', qualifier: 3, category: 'trouble', description: 'Sensor missing restore' },
+  'YM': { code: '311', qualifier: 1, category: 'trouble', description: 'Battery missing' },
+  'YA': { code: '311', qualifier: 3, category: 'trouble', description: 'Battery connected' },
+  'YP': { code: '337', qualifier: 1, category: 'trouble', description: 'External power failure' },
+  'YQ': { code: '337', qualifier: 3, category: 'trouble', description: 'External power restored' },
 
-  // Test / Supervision
+  // ── Communication / Connection ────────────────────────────────
+  'YC': { code: '350', qualifier: 1, category: 'communication', description: 'Hub offline' },
+  'YK': { code: '350', qualifier: 3, category: 'communication', description: 'Hub online' },
+  'YS': { code: '354', qualifier: 1, category: 'communication', description: 'CMS connection lost' },
+  'XL': { code: '381', qualifier: 1, category: 'communication', description: 'Device connection lost' },
+  'XC': { code: '381', qualifier: 3, category: 'communication', description: 'Device connection restored' },
+  'PF': { code: '391', qualifier: 1, category: 'communication', description: 'Photo channel connection lost' },
+  'PO': { code: '391', qualifier: 3, category: 'communication', description: 'Photo channel connection restored' },
+
+  // ── Sensor / Device Trouble ───────────────────────────────────
+  'XT': { code: '384', qualifier: 1, category: 'trouble', description: 'Sensor low battery' },
+  'XR': { code: '384', qualifier: 3, category: 'trouble', description: 'Sensor battery charged' },
+  'XQ': { code: '344', qualifier: 1, category: 'trouble', description: 'RF interference high' },
+  'XH': { code: '344', qualifier: 3, category: 'trouble', description: 'RF interference OK' },
+
+  // ── System Lifecycle ──────────────────────────────────────────
+  'ZZ': { code: '308', qualifier: 1, category: 'system', description: 'System turned off' },
+  'ZY': { code: '305', qualifier: 1, category: 'system', description: 'System switched on' },
+  'XI': { code: '306', qualifier: 1, category: 'system', description: 'Factory reset' },
+  'YG': { code: '627', qualifier: 6, category: 'system', description: 'Settings changed' },
+  'RB': { code: '627', qualifier: 6, category: 'system', description: 'Firmware updating' },
+  'RS': { code: '627', qualifier: 6, category: 'system', description: 'Firmware updated' },
+
+  // ── Test / Supervision ────────────────────────────────────────
   'RP': { code: '602', qualifier: 6, category: 'test', description: 'Automatic test' },
   'RX': { code: '601', qualifier: 6, category: 'test', description: 'Manual test' },
-  'RS': { code: '305', qualifier: 6, category: 'test', description: 'System reset' },
 };
 
 // ============================================================
@@ -164,10 +216,12 @@ export const CID_EVENT_CODES: Record<string, { category: string; description: st
   '305': { category: 'trouble', description: 'System reset' },
   '306': { category: 'trouble', description: 'Programming changed' },
   '307': { category: 'trouble', description: 'Self-test failure' },
-  '308': { category: 'trouble', description: 'System shutdown' },
+  '308': { category: 'system', description: 'System shutdown' },
   '309': { category: 'trouble', description: 'Battery test failure' },
   '311': { category: 'trouble', description: 'Battery missing' },
   '312': { category: 'trouble', description: 'Power supply overcurrent' },
+  '337': { category: 'trouble', description: 'External power failure' },
+  '344': { category: 'trouble', description: 'RF interference' },
 
   // Communication
   '350': { category: 'communication', description: 'Communication trouble' },
@@ -182,11 +236,15 @@ export const CID_EVENT_CODES: Record<string, { category: string; description: st
   '371': { category: 'trouble', description: 'Protection loop open' },
   '372': { category: 'trouble', description: 'Protection loop short' },
   '373': { category: 'trouble', description: 'Fire loop trouble' },
+  '377': { category: 'trouble', description: 'Accelerometer malfunction' },
   '380': { category: 'trouble', description: 'Sensor trouble' },
-  '381': { category: 'trouble', description: 'Loss of supervision' },
+  '381': { category: 'communication', description: 'Loss of supervision' },
   '382': { category: 'trouble', description: 'Sensor low sensitivity' },
   '383': { category: 'trouble', description: 'Sensor high sensitivity' },
-  '384': { category: 'trouble', description: 'Date/time trouble' },
+  '384': { category: 'trouble', description: 'Sensor low battery' },
+  '389': { category: 'trouble', description: 'Fire sensor hardware failure' },
+  '391': { category: 'communication', description: 'Photo channel failure' },
+  '393': { category: 'trouble', description: 'Smoke chamber dirty' },
 
   // Open/Close (arm/disarm)
   '400': { category: 'arming', description: 'Open/Close' },
@@ -200,6 +258,7 @@ export const CID_EVENT_CODES: Record<string, { category: string; description: st
   '408': { category: 'arming', description: 'Quick arm' },
   '409': { category: 'arming', description: 'Key switch arm' },
   '411': { category: 'arming', description: 'Callback requested' },
+  '423': { category: 'duress', description: 'Disarmed under duress' },
   '412': { category: 'arming', description: 'Download successful' },
   '413': { category: 'arming', description: 'Download unsuccessful' },
 
@@ -207,8 +266,11 @@ export const CID_EVENT_CODES: Record<string, { category: string; description: st
   '441': { category: 'arming', description: 'Armed stay/night' },
   '442': { category: 'arming', description: 'Armed stay/instant' },
 
+  '455': { category: 'arming', description: 'Unsuccessful arming attempt' },
+
   // Bypass
   '456': { category: 'arming', description: 'Partial arm' },
+  '461': { category: 'trouble', description: 'Password brute-force attempt' },
   '570': { category: 'bypass', description: 'Zone bypass' },
   '571': { category: 'bypass', description: 'Fire bypass' },
   '572': { category: 'bypass', description: '24 Hour zone bypass' },
@@ -277,19 +339,22 @@ export interface CidEvent {
 }
 
 // ============================================================
-// CRC-16/CCITT-FALSE
+// CRC-16/ARC (CRC-16-IBM)
+// Polynomial 0x8005 (reflected: 0xA001), initial value 0x0000
+// This is what Ajax hubs and standard SIA DC-09 implementations use.
 // ============================================================
 
-function crc16ccitt(data: Buffer): number {
-  let crc = 0xFFFF;
+function crc16arc(data: Buffer): number {
+  let crc = 0;
   for (let i = 0; i < data.length; i++) {
-    crc ^= (data[i] << 8);
+    let temp = data[i];
     for (let j = 0; j < 8; j++) {
-      if (crc & 0x8000) {
-        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
-      } else {
-        crc = (crc << 1) & 0xFFFF;
+      temp ^= crc & 1;
+      crc >>= 1;
+      if (temp & 1) {
+        crc ^= 0xA001;
       }
+      temp >>= 1;
     }
   }
   return crc;
@@ -315,27 +380,22 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
 
   const content = str.substring(firstQuote + 1, lastQuote);
 
-  // Extract CRC (4 hex chars before the length field)
-  // Format: <LF><CRC><0LEN>"<content>"<timestamp><CR>
-  // The CRC and length are before the first quote
+  // Extract CRC and LEN from the prefix before the first quote
+  // Format: <LF><CRC><0LEN>"<body><CR>
   const prefix = str.substring(0, firstQuote);
-  // Remove leading LF/whitespace
   const cleanPrefix = prefix.replace(/^[\n\r\s]+/, '');
 
   let crcStr = '';
-  let lenStr = '';
   if (cleanPrefix.length >= 8) {
     crcStr = cleanPrefix.substring(0, 4);
-    lenStr = cleanPrefix.substring(4, 8);
   } else if (cleanPrefix.length >= 4) {
-    // Some implementations send just CRC+LEN without leading 0
     crcStr = cleanPrefix.substring(0, 4);
-    lenStr = cleanPrefix.substring(4);
   }
 
-  // Validate CRC
-  const contentBuf = Buffer.from(`"${content}"`, 'ascii');
-  const expectedCrc = crc16ccitt(contentBuf);
+  // Validate CRC - covers everything after the 8-char CRC+LEN header
+  // This includes the opening quote, content, closing quote, and timestamp (if any)
+  const bodyForCrc = str.substring(firstQuote).replace(/\r$/, '');
+  const expectedCrc = crc16arc(Buffer.from(bodyForCrc, 'ascii'));
   const receivedCrc = parseInt(crcStr, 16);
   const crcValid = !isNaN(receivedCrc) && receivedCrc === expectedCrc;
 
@@ -380,40 +440,37 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
     };
   }
 
-  // Try standard SIA DC-09 format with quotes as separators
-  // Handles all protocols: SIA-DCS, ADM-CID, NULL (with fields)
+  // Standard SIA DC-09 format: quotes only after protocol name, fields concatenated
+  //   <proto>"<seq><Rrecv><Lline>#<acct>[<data>]
+  // Also handles legacy format with quotes between all fields:
+  //   <proto>"<seq>"<Rrecv>"<Lline>"#<acct>[<data>]
   const siaMatch = cleanContent.match(
-    /^(SIA-DCS|ADM-CID|NULL)"(\w*)"(R\w*)"(L\w*)"#([\w]+)\[([^\]]*)\]?$/,
+    /^(SIA-DCS|ADM-CID|NULL)"(\d{0,4})"?(R[0-9A-Fa-f]{0,6})?"?(L[0-9A-Fa-f]{0,6})"?#([0-9A-Fa-f]{1,16})\[([^\]]*)\]?$/,
   );
   if (siaMatch) {
     [, protocol, sequence, receiver, linePrefix, account, eventData] = siaMatch;
+    // Ensure receiver/line have defaults
+    receiver = receiver || 'R0';
+    linePrefix = linePrefix || 'L0';
   } else {
-    // Try alternate formats with | separators
-    const altMatch = cleanContent.match(
-      /^(SIA-DCS|ADM-CID|NULL)\|?"?(\w*)"?\|?(R\w*)\|?"?(L\w*)"?\|?#([\w]+)\[([^\]]*)\]?$/,
-    );
-    if (altMatch) {
-      [, protocol, sequence, receiver, linePrefix, account, eventData] = altMatch;
-    } else {
-      // Try loose parse - just extract what we can
-      const looseProto = cleanContent.match(/^(SIA-DCS|ADM-CID|NULL)/);
-      protocol = looseProto ? looseProto[1] : 'UNKNOWN';
+    // Try loose parse - extract what we can from non-standard formats
+    const looseProto = cleanContent.match(/^(SIA-DCS|ADM-CID|NULL)/);
+    protocol = looseProto ? looseProto[1] : 'UNKNOWN';
 
-      const acctMatch = cleanContent.match(/#([\w]+)/);
-      account = acctMatch ? acctMatch[1] : '';
+    const acctMatch = cleanContent.match(/#([0-9A-Fa-f\w]+)/);
+    account = acctMatch ? acctMatch[1] : '';
 
-      const dataMatch = cleanContent.match(/\[([^\]]*)\]/);
-      eventData = dataMatch ? dataMatch[1] : '';
+    const dataMatch = cleanContent.match(/\[([^\]]*)\]/);
+    eventData = dataMatch ? dataMatch[1] : '';
 
-      const seqMatch = cleanContent.match(/"(\d+)"/);
-      sequence = seqMatch ? seqMatch[1] : '';
+    const seqMatch = cleanContent.match(/"(\d+)/);
+    sequence = seqMatch ? seqMatch[1] : '';
 
-      const recvMatch = cleanContent.match(/(R[\w]+)/);
-      receiver = recvMatch ? recvMatch[1] : 'R0';
+    const recvMatch = cleanContent.match(/(R[0-9A-Fa-f]+)/);
+    receiver = recvMatch ? recvMatch[1] : 'R0';
 
-      const lpMatch = cleanContent.match(/(L[\w]+)/);
-      linePrefix = lpMatch ? lpMatch[1] : 'L0';
-    }
+    const lpMatch = cleanContent.match(/(L[0-9A-Fa-f]+)/);
+    linePrefix = lpMatch ? lpMatch[1] : 'L0';
   }
 
   // Parse CID event data if ADM-CID
@@ -540,31 +597,29 @@ function buildCidEvent(qualifier: number, code: string, partition: number, zone:
 
 /**
  * Build a SIA DC-09 ACK response for a received message.
+ *
+ * Format: <LF><CRC><LEN><body><CR>
+ * Body:   "ACK"<seq><Rrecv><Lline>#<acct>[]
+ *
+ * CRC and LEN are computed over the body string.
+ * No timestamp is included (matches standard CMS implementations).
  */
 export function buildSiaAck(message: SiaMessage): Buffer {
-  const ts = new Date();
-  const timestamp = `_${pad2(ts.getHours())}:${pad2(ts.getMinutes())}:${pad2(ts.getSeconds())},${pad2(ts.getMonth() + 1)}-${pad2(ts.getDate())}-${ts.getFullYear()}`;
-
-  let ackContent: string;
+  let body: string;
   if (message.sequence || message.account) {
-    // Full ACK with all fields (works for all protocols including NULL with fields)
-    ackContent = `ACK"${message.sequence}"${message.receiver}"${message.linePrefix}"#${message.account}[]`;
+    // Full ACK echoing back sequence, receiver, line, and account
+    body = `"ACK"${message.sequence}${message.receiver}${message.linePrefix}#${message.account}[]`;
   } else {
     // Simple ACK for bare NULL messages without fields
-    ackContent = 'ACK';
+    body = '"ACK"';
   }
 
-  const contentWithQuotes = `"${ackContent}"`;
-  const crc = crc16ccitt(Buffer.from(contentWithQuotes, 'ascii'));
+  const crc = crc16arc(Buffer.from(body, 'ascii'));
   const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
-  const lenHex = contentWithQuotes.length.toString(16).toUpperCase().padStart(4, '0');
+  const lenHex = body.length.toString(16).toUpperCase().padStart(4, '0');
 
-  const frame = `\n${crcHex}${lenHex}${contentWithQuotes}${timestamp}\r`;
+  const frame = `\n${crcHex}${lenHex}${body}\r`;
   return Buffer.from(frame, 'ascii');
-}
-
-function pad2(n: number): string {
-  return n.toString().padStart(2, '0');
 }
 
 // ============================================================
@@ -628,7 +683,7 @@ export function isWaterAlarm(code: string): boolean {
  * Determine if a CID event code is a tamper alarm.
  */
 export function isTamperAlarm(code: string): boolean {
-  return code === '137' || code === '144' || code === '145';
+  return code === '137' || code === '144' || code === '145' || code === '377';
 }
 
 /**
