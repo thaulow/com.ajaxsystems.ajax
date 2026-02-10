@@ -88,36 +88,61 @@ export class SiaServer extends EventEmitter {
     this.error = error;
   }
 
+  private static readonly BIND_RETRY_COUNT = 5;
+  private static readonly BIND_RETRY_BASE_MS = 1000;
+
   /**
    * Start the SIA TCP server.
+   * Retries on EADDRINUSE (previous process may not have released the port yet).
    */
-  start(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.running) {
-        resolve();
-        return;
-      }
+  async start(): Promise<void> {
+    if (this.running) return;
 
-      this.server = net.createServer((socket) => {
+    for (let attempt = 1; attempt <= SiaServer.BIND_RETRY_COUNT; attempt++) {
+      try {
+        await this.tryBind();
+        return; // Success
+      } catch (err) {
+        const errno = err as NodeJS.ErrnoException;
+        if (errno.code === 'EADDRINUSE' && attempt < SiaServer.BIND_RETRY_COUNT) {
+          const delay = SiaServer.BIND_RETRY_BASE_MS * attempt;
+          this.log(`Port ${this.config.port} in use, retrying in ${delay}ms (attempt ${attempt}/${SiaServer.BIND_RETRY_COUNT})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
+  private tryBind(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const server = net.createServer((socket) => {
         this.handleConnection(socket);
       });
 
-      this.server.on('error', (err: NodeJS.ErrnoException) => {
-        this.error('SIA server error:', err.message);
-        if (err.code === 'EADDRINUSE') {
-          this.error(`Port ${this.config.port} is already in use`);
-        }
-        this.emit('error', err);
-        if (!this.running) {
-          reject(err);
-        }
-      });
+      const onError = (err: NodeJS.ErrnoException) => {
+        server.removeListener('listening', onListening);
+        server.close();
+        reject(err);
+      };
 
-      this.server.listen(this.config.port, '0.0.0.0', () => {
+      const onListening = () => {
+        server.removeListener('error', onError);
+        // Re-attach a persistent error handler for runtime errors
+        server.on('error', (err: NodeJS.ErrnoException) => {
+          this.error('SIA server error:', err.message);
+          this.emit('error', err);
+        });
+        this.server = server;
         this.running = true;
         this.log(`SIA server listening on port ${this.config.port}`);
         resolve();
-      });
+      };
+
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(this.config.port, '0.0.0.0');
     });
   }
 
