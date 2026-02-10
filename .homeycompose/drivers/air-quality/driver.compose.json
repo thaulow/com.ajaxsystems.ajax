@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax LifeQuality Air Sensor" },
+  "class": "sensor",
+  "capabilities": ["measure_temperature", "measure_humidity", "measure_co2", "measure_battery", "ajax_signal_strength"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/air-quality/assets/images/small.png",
+    "large": "/drivers/air-quality/assets/images/large.png",
+    "xlarge": "/drivers/air-quality/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

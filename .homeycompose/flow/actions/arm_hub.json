@@ -1,0 +1,12 @@
+{
+  "id": "arm_hub",
+  "title": { "en": "Arm the hub" },
+  "hint": { "en": "Arm an Ajax hub" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}

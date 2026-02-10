@@ -1,0 +1,12 @@
+{
+  "id": "mute_fire_detectors",
+  "title": { "en": "Mute fire detectors" },
+  "hint": { "en": "Mute all fire detectors on an Ajax hub" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}

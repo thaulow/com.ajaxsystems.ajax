@@ -1,0 +1,8 @@
+{
+  "id": "hub_online",
+  "title": { "en": "Hub came online" },
+  "hint": { "en": "Triggers when an Ajax hub reconnects" },
+  "tokens": [
+    { "name": "hub_name", "type": "string", "title": { "en": "Hub Name" } }
+  ]
+}

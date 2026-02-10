@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax Smoke/Fire Detector" },
+  "class": "sensor",
+  "capabilities": ["alarm_smoke", "alarm_heat", "alarm_co", "alarm_tamper", "measure_battery", "measure_temperature", "ajax_signal_strength"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/smoke-detector/assets/images/small.png",
+    "large": "/drivers/smoke-detector/assets/images/large.png",
+    "xlarge": "/drivers/smoke-detector/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

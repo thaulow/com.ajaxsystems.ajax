@@ -1,0 +1,12 @@
+{
+  "id": "disarm_hub",
+  "title": { "en": "Disarm the hub" },
+  "hint": { "en": "Disarm an Ajax hub" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}

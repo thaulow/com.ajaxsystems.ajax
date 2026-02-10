@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "title": { "en": "Glass Break" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "uiQuickAction": false,
+  "insightsTitleTrue": { "en": "Glass break detected" },
+  "insightsTitleFalse": { "en": "No glass break" },
+  "icon": "/assets/capabilities/glass-break.svg"
+}

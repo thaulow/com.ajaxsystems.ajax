@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax Button/Remote" },
+  "class": "other",
+  "capabilities": ["ajax_button_pressed", "measure_battery", "ajax_signal_strength"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/button/assets/images/small.png",
+    "large": "/drivers/button/assets/images/large.png",
+    "xlarge": "/drivers/button/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

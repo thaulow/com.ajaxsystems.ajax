@@ -1,0 +1,37 @@
+{
+  "name": {
+    "en": "Ajax Security Group"
+  },
+  "class": "homealarm",
+  "capabilities": [
+    "homealarm_state",
+    "ajax_night_mode"
+  ],
+  "capabilitiesOptions": {
+    "homealarm_state": {
+      "values": [
+        { "id": "armed", "title": { "en": "Armed" } },
+        { "id": "disarmed", "title": { "en": "Disarmed" } },
+        { "id": "partially_armed", "title": { "en": "Partially Armed" } }
+      ]
+    }
+  },
+  "images": {
+    "small": "/drivers/group/assets/images/small.png",
+    "large": "/drivers/group/assets/images/large.png",
+    "xlarge": "/drivers/group/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "next": "add_devices" }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ]
+}

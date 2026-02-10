@@ -1,0 +1,1207 @@
+{
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
+  "id": "com.ajaxsystems.ajax",
+  "version": "1.0.0",
+  "compatibility": ">=5.0.0",
+  "sdk": 3,
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Ajax Systems"
+  },
+  "description": {
+    "en": "Intrusion, Fire and Water detection with Ajax Systems"
+  },
+  "brandColor": "#1B1B1B",
+  "category": [
+    "security"
+  ],
+  "permissions": [],
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Thomas Thaulow",
+    "email": "thaulow@thaulow.co"
+  },
+  "settings": [
+    {
+      "type": "group",
+      "title": {
+        "en": "Connection Mode"
+      },
+      "children": [
+        {
+          "id": "auth_mode",
+          "type": "dropdown",
+          "title": {
+            "en": "Authentication mode"
+          },
+          "hint": {
+            "en": "Select how to connect to Ajax Systems"
+          },
+          "value": "user",
+          "values": [
+            {
+              "id": "user",
+              "title": {
+                "en": "User Mode (API Key + Login)"
+              }
+            },
+            {
+              "id": "company",
+              "title": {
+                "en": "Company Mode (Company Token)"
+              }
+            },
+            {
+              "id": "proxy",
+              "title": {
+                "en": "Proxy Mode (Custom Proxy Server)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": {
+        "en": "API Credentials"
+      },
+      "children": [
+        {
+          "id": "api_key",
+          "type": "text",
+          "title": {
+            "en": "API Key"
+          },
+          "hint": {
+            "en": "Your Ajax Systems Enterprise API key (X-Api-Key)"
+          },
+          "value": ""
+        },
+        {
+          "id": "email",
+          "type": "text",
+          "title": {
+            "en": "Email"
+          },
+          "hint": {
+            "en": "Ajax account email (User/Proxy mode)"
+          },
+          "value": ""
+        },
+        {
+          "id": "password",
+          "type": "password",
+          "title": {
+            "en": "Password"
+          },
+          "hint": {
+            "en": "Ajax account password (User/Proxy mode)"
+          },
+          "value": ""
+        },
+        {
+          "id": "user_role",
+          "type": "dropdown",
+          "title": {
+            "en": "User role"
+          },
+          "value": "USER",
+          "values": [
+            {
+              "id": "USER",
+              "title": {
+                "en": "User"
+              }
+            },
+            {
+              "id": "PRO",
+              "title": {
+                "en": "PRO (Installer)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": {
+        "en": "Company Mode"
+      },
+      "children": [
+        {
+          "id": "company_id",
+          "type": "text",
+          "title": {
+            "en": "Company ID"
+          },
+          "hint": {
+            "en": "Your company identifier (Company mode only)"
+          },
+          "value": ""
+        },
+        {
+          "id": "company_token",
+          "type": "password",
+          "title": {
+            "en": "Company Token"
+          },
+          "hint": {
+            "en": "X-Company-Token (Company mode only)"
+          },
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": {
+        "en": "Proxy Mode"
+      },
+      "children": [
+        {
+          "id": "proxy_url",
+          "type": "text",
+          "title": {
+            "en": "Proxy URL"
+          },
+          "hint": {
+            "en": "URL of the Ajax proxy server (Proxy mode only)"
+          },
+          "value": ""
+        },
+        {
+          "id": "verify_ssl",
+          "type": "checkbox",
+          "title": {
+            "en": "Verify SSL"
+          },
+          "hint": {
+            "en": "Verify SSL certificates for proxy connections"
+          },
+          "value": true
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": {
+        "en": "Real-Time Events (SQS)"
+      },
+      "children": [
+        {
+          "id": "sqs_enabled",
+          "type": "checkbox",
+          "title": {
+            "en": "Enable SQS"
+          },
+          "hint": {
+            "en": "Enable AWS SQS for real-time events (Direct mode only)"
+          },
+          "value": false
+        },
+        {
+          "id": "sqs_access_key",
+          "type": "text",
+          "title": {
+            "en": "AWS Access Key"
+          },
+          "value": ""
+        },
+        {
+          "id": "sqs_secret_key",
+          "type": "password",
+          "title": {
+            "en": "AWS Secret Key"
+          },
+          "value": ""
+        },
+        {
+          "id": "sqs_events_queue",
+          "type": "text",
+          "title": {
+            "en": "Events Queue Name"
+          },
+          "hint": {
+            "en": "e.g., ajax-XXXX-events-prod.fifo"
+          },
+          "value": ""
+        },
+        {
+          "id": "sqs_updates_queue",
+          "type": "text",
+          "title": {
+            "en": "Updates Queue Name"
+          },
+          "hint": {
+            "en": "e.g., ajax-XXXX-updates-prod.fifo"
+          },
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": {
+        "en": "Polling Intervals"
+      },
+      "children": [
+        {
+          "id": "poll_armed",
+          "type": "number",
+          "title": {
+            "en": "Armed interval (seconds)"
+          },
+          "hint": {
+            "en": "Polling interval when system is armed (10-300)"
+          },
+          "value": 10,
+          "min": 10,
+          "max": 300
+        },
+        {
+          "id": "poll_disarmed",
+          "type": "number",
+          "title": {
+            "en": "Disarmed interval (seconds)"
+          },
+          "hint": {
+            "en": "Polling interval when system is disarmed (10-300)"
+          },
+          "value": 30,
+          "min": 10,
+          "max": 300
+        }
+      ]
+    }
+  ],
+  "flow": {
+    "triggers": [
+      {
+        "id": "alarm_event",
+        "title": {
+          "en": "An alarm event occurred"
+        },
+        "hint": {
+          "en": "Triggers when any Ajax alarm event is received"
+        },
+        "tokens": [
+          {
+            "name": "hub_name",
+            "type": "string",
+            "title": {
+              "en": "Hub Name"
+            }
+          },
+          {
+            "name": "event_type",
+            "type": "string",
+            "title": {
+              "en": "Event Type"
+            }
+          },
+          {
+            "name": "device_name",
+            "type": "string",
+            "title": {
+              "en": "Device Name"
+            }
+          },
+          {
+            "name": "room_name",
+            "type": "string",
+            "title": {
+              "en": "Room Name"
+            }
+          }
+        ]
+      },
+      {
+        "id": "hub_armed",
+        "title": {
+          "en": "Hub was armed"
+        },
+        "hint": {
+          "en": "Triggers when an Ajax hub is armed"
+        },
+        "tokens": [
+          {
+            "name": "hub_name",
+            "type": "string",
+            "title": {
+              "en": "Hub Name"
+            }
+          }
+        ]
+      },
+      {
+        "id": "hub_disarmed",
+        "title": {
+          "en": "Hub was disarmed"
+        },
+        "hint": {
+          "en": "Triggers when an Ajax hub is disarmed"
+        },
+        "tokens": [
+          {
+            "name": "hub_name",
+            "type": "string",
+            "title": {
+              "en": "Hub Name"
+            }
+          }
+        ]
+      },
+      {
+        "id": "hub_offline",
+        "title": {
+          "en": "Hub went offline"
+        },
+        "hint": {
+          "en": "Triggers when an Ajax hub loses connection"
+        },
+        "tokens": [
+          {
+            "name": "hub_name",
+            "type": "string",
+            "title": {
+              "en": "Hub Name"
+            }
+          }
+        ]
+      },
+      {
+        "id": "hub_online",
+        "title": {
+          "en": "Hub came online"
+        },
+        "hint": {
+          "en": "Triggers when an Ajax hub reconnects"
+        },
+        "tokens": [
+          {
+            "name": "hub_name",
+            "type": "string",
+            "title": {
+              "en": "Hub Name"
+            }
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "id": "hub_is_armed",
+        "title": {
+          "en": "Hub !{{is|is not}} armed"
+        },
+        "hint": {
+          "en": "Check if a specific hub is currently armed"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "night_mode_on",
+        "title": {
+          "en": "Night mode !{{is|is not}} enabled"
+        },
+        "hint": {
+          "en": "Check if night mode is enabled on a hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "arm_hub",
+        "title": {
+          "en": "Arm the hub"
+        },
+        "hint": {
+          "en": "Arm an Ajax hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "disarm_hub",
+        "title": {
+          "en": "Disarm the hub"
+        },
+        "hint": {
+          "en": "Disarm an Ajax hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "mute_fire_detectors",
+        "title": {
+          "en": "Mute fire detectors"
+        },
+        "hint": {
+          "en": "Mute all fire detectors on an Ajax hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "night_mode_off",
+        "title": {
+          "en": "Disable night mode"
+        },
+        "hint": {
+          "en": "Disable night mode on an Ajax hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "night_mode_on",
+        "title": {
+          "en": "Enable night mode"
+        },
+        "hint": {
+          "en": "Enable night mode on an Ajax hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      }
+    ]
+  },
+  "drivers": [
+    {
+      "name": {
+        "en": "Ajax LifeQuality Air Sensor"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "measure_temperature",
+        "measure_humidity",
+        "measure_co2",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/air-quality/assets/images/small.png",
+        "large": "/drivers/air-quality/assets/images/large.png",
+        "xlarge": "/drivers/air-quality/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "air-quality"
+    },
+    {
+      "name": {
+        "en": "Ajax Button/Remote"
+      },
+      "class": "other",
+      "capabilities": [
+        "ajax_button_pressed",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/button/assets/images/small.png",
+        "large": "/drivers/button/assets/images/large.png",
+        "xlarge": "/drivers/button/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "button"
+    },
+    {
+      "name": {
+        "en": "Ajax Door/Window Sensor"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "alarm_contact",
+        "alarm_tamper",
+        "measure_battery",
+        "measure_temperature",
+        "ajax_signal_strength",
+        "ajax_extra_contact"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/contact-sensor/assets/images/small.png",
+        "large": "/drivers/contact-sensor/assets/images/large.png",
+        "xlarge": "/drivers/contact-sensor/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "contact-sensor"
+    },
+    {
+      "name": {
+        "en": "Ajax Glass Break Detector"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "ajax_glass_break",
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/glass-break-detector/assets/images/small.png",
+        "large": "/drivers/glass-break-detector/assets/images/large.png",
+        "xlarge": "/drivers/glass-break-detector/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "glass-break-detector"
+    },
+    {
+      "name": {
+        "en": "Ajax Security Group"
+      },
+      "class": "homealarm",
+      "capabilities": [
+        "homealarm_state",
+        "ajax_night_mode"
+      ],
+      "capabilitiesOptions": {
+        "homealarm_state": {
+          "values": [
+            {
+              "id": "armed",
+              "title": {
+                "en": "Armed"
+              }
+            },
+            {
+              "id": "disarmed",
+              "title": {
+                "en": "Disarmed"
+              }
+            },
+            {
+              "id": "partially_armed",
+              "title": {
+                "en": "Partially Armed"
+              }
+            }
+          ]
+        }
+      },
+      "images": {
+        "small": "/drivers/group/assets/images/small.png",
+        "large": "/drivers/group/assets/images/large.png",
+        "xlarge": "/drivers/group/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "group"
+    },
+    {
+      "name": {
+        "en": "Ajax Hub"
+      },
+      "class": "homealarm",
+      "capabilities": [
+        "homealarm_state",
+        "ajax_night_mode",
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_gsm_signal",
+        "ajax_wifi_signal",
+        "ajax_connection_state",
+        "ajax_firmware_version"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "capabilitiesOptions": {
+        "homealarm_state": {
+          "values": [
+            {
+              "id": "armed",
+              "title": {
+                "en": "Armed"
+              }
+            },
+            {
+              "id": "disarmed",
+              "title": {
+                "en": "Disarmed"
+              }
+            },
+            {
+              "id": "partially_armed",
+              "title": {
+                "en": "Partially Armed"
+              }
+            }
+          ]
+        }
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "images": {
+        "small": "/drivers/hub/assets/images/small.png",
+        "large": "/drivers/hub/assets/images/large.png",
+        "xlarge": "/drivers/hub/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "login_credentials",
+          "template": "login_credentials",
+          "options": {
+            "logo": "/drivers/hub/assets/icon.svg",
+            "usernameLabel": {
+              "en": "Email"
+            },
+            "passwordLabel": {
+              "en": "Password"
+            }
+          }
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "hub"
+    },
+    {
+      "name": {
+        "en": "Ajax Motion Sensor"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "alarm_motion",
+        "alarm_tamper",
+        "measure_battery",
+        "measure_temperature",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/motion-sensor/assets/images/small.png",
+        "large": "/drivers/motion-sensor/assets/images/large.png",
+        "xlarge": "/drivers/motion-sensor/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "motion-sensor"
+    },
+    {
+      "name": {
+        "en": "Ajax Siren"
+      },
+      "class": "other",
+      "capabilities": [
+        "ajax_siren_active",
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/siren/assets/images/small.png",
+        "large": "/drivers/siren/assets/images/large.png",
+        "xlarge": "/drivers/siren/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "siren"
+    },
+    {
+      "name": {
+        "en": "Ajax Socket/Relay"
+      },
+      "class": "socket",
+      "capabilities": [
+        "onoff",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/smart-plug/assets/images/small.png",
+        "large": "/drivers/smart-plug/assets/images/large.png",
+        "xlarge": "/drivers/smart-plug/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "smart-plug"
+    },
+    {
+      "name": {
+        "en": "Ajax Smoke/Fire Detector"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "alarm_smoke",
+        "alarm_heat",
+        "alarm_co",
+        "alarm_tamper",
+        "measure_battery",
+        "measure_temperature",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/smoke-detector/assets/images/small.png",
+        "large": "/drivers/smoke-detector/assets/images/large.png",
+        "xlarge": "/drivers/smoke-detector/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "smoke-detector"
+    },
+    {
+      "name": {
+        "en": "Ajax Water Leak Detector"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "alarm_water",
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/water-detector/assets/images/small.png",
+        "large": "/drivers/water-detector/assets/images/large.png",
+        "xlarge": "/drivers/water-detector/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "water-detector"
+    }
+  ],
+  "capabilities": {
+    "ajax_button_pressed": {
+      "type": "string",
+      "title": {
+        "en": "Button Event"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/button.svg",
+      "insights": false
+    },
+    "ajax_connection_state": {
+      "type": "boolean",
+      "title": {
+        "en": "Online"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/connection.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Online"
+      },
+      "insightsTitleFalse": {
+        "en": "Offline"
+      }
+    },
+    "ajax_extra_contact": {
+      "type": "boolean",
+      "title": {
+        "en": "External Contact"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/contact.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "External contact open"
+      },
+      "insightsTitleFalse": {
+        "en": "External contact closed"
+      }
+    },
+    "ajax_firmware_version": {
+      "type": "string",
+      "title": {
+        "en": "Firmware"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/firmware.svg",
+      "insights": false
+    },
+    "ajax_glass_break": {
+      "type": "boolean",
+      "title": {
+        "en": "Glass Break"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "uiQuickAction": false,
+      "insightsTitleTrue": {
+        "en": "Glass break detected"
+      },
+      "insightsTitleFalse": {
+        "en": "No glass break"
+      },
+      "icon": "/assets/capabilities/glass-break.svg"
+    },
+    "ajax_gsm_signal": {
+      "type": "number",
+      "title": {
+        "en": "GSM Signal"
+      },
+      "units": {
+        "en": "%"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/gsm.svg",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "insights": false
+    },
+    "ajax_night_mode": {
+      "type": "boolean",
+      "title": {
+        "en": "Night Mode"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "toggle",
+      "icon": "/assets/capabilities/night-mode.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Night mode enabled"
+      },
+      "insightsTitleFalse": {
+        "en": "Night mode disabled"
+      }
+    },
+    "ajax_signal_strength": {
+      "type": "number",
+      "title": {
+        "en": "Signal Strength"
+      },
+      "units": {
+        "en": "%"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/signal.svg",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "insights": false
+    },
+    "ajax_siren_active": {
+      "type": "boolean",
+      "title": {
+        "en": "Siren Active"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/siren.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Siren activated"
+      },
+      "insightsTitleFalse": {
+        "en": "Siren silent"
+      }
+    },
+    "ajax_wifi_signal": {
+      "type": "number",
+      "title": {
+        "en": "WiFi Signal"
+      },
+      "units": {
+        "en": "%"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/wifi.svg",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "insights": false
+    }
+  }
+}

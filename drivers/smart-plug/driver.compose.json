@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax Socket/Relay" },
+  "class": "socket",
+  "capabilities": ["onoff", "measure_power", "meter_power", "measure_voltage", "alarm_tamper", "measure_battery", "ajax_signal_strength"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/smart-plug/assets/images/small.png",
+    "large": "/drivers/smart-plug/assets/images/large.png",
+    "xlarge": "/drivers/smart-plug/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

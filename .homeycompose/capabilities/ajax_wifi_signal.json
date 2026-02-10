@@ -1,0 +1,17 @@
+{
+  "type": "number",
+  "title": {
+    "en": "WiFi Signal"
+  },
+  "units": {
+    "en": "%"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/wifi.svg",
+  "min": 0,
+  "max": 100,
+  "step": 1,
+  "insights": false
+}

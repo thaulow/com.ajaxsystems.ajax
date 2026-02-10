@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Siren Active"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/siren.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Siren activated"
+  },
+  "insightsTitleFalse": {
+    "en": "Siren silent"
+  }
+}

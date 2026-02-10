@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Night Mode"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "toggle",
+  "icon": "/assets/capabilities/night-mode.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Night mode enabled"
+  },
+  "insightsTitleFalse": {
+    "en": "Night mode disabled"
+  }
+}

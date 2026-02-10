@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax Motion Sensor" },
+  "class": "sensor",
+  "capabilities": ["alarm_motion", "alarm_tamper", "measure_battery", "measure_temperature", "ajax_signal_strength"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/motion-sensor/assets/images/small.png",
+    "large": "/drivers/motion-sensor/assets/images/large.png",
+    "xlarge": "/drivers/motion-sensor/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

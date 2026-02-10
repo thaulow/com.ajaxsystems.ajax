@@ -1,0 +1,12 @@
+{
+  "id": "night_mode_off",
+  "title": { "en": "Disable night mode" },
+  "hint": { "en": "Disable night mode on an Ajax hub" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax Door/Window Sensor" },
+  "class": "sensor",
+  "capabilities": ["alarm_contact", "alarm_tamper", "measure_battery", "measure_temperature", "ajax_signal_strength", "ajax_extra_contact"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/contact-sensor/assets/images/small.png",
+    "large": "/drivers/contact-sensor/assets/images/large.png",
+    "xlarge": "/drivers/contact-sensor/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

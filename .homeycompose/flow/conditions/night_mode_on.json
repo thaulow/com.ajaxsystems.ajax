@@ -1,0 +1,12 @@
+{
+  "id": "night_mode_on",
+  "title": { "en": "Night mode !{{is|is not}} enabled" },
+  "hint": { "en": "Check if night mode is enabled on a hub" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}

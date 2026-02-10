@@ -1,0 +1,20 @@
+{
+  "settings": {
+    "auth_mode": "Authentication mode",
+    "api_key": "API Key",
+    "email": "Email",
+    "password": "Password",
+    "user_role": "User role",
+    "company_id": "Company ID",
+    "company_token": "Company Token",
+    "proxy_url": "Proxy URL",
+    "verify_ssl": "Verify SSL",
+    "sqs_enabled": "Enable SQS",
+    "sqs_access_key": "AWS Access Key",
+    "sqs_secret_key": "AWS Secret Key",
+    "sqs_events_queue": "Events Queue Name",
+    "sqs_updates_queue": "Updates Queue Name",
+    "poll_armed": "Armed interval (seconds)",
+    "poll_disarmed": "Disarmed interval (seconds)"
+  }
+}

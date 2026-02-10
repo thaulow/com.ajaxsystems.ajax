@@ -1,0 +1,189 @@
+{
+  "id": "com.ajaxsystems.ajax",
+  "version": "1.0.0",
+  "compatibility": ">=5.0.0",
+  "sdk": 3,
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Ajax Systems"
+  },
+  "description": {
+    "en": "Intrusion, Fire and Water detection with Ajax Systems"
+  },
+  "brandColor": "#1B1B1B",
+  "category": [
+    "security"
+  ],
+  "permissions": [],
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Thomas Thaulow",
+    "email": "thaulow@thaulow.co"
+  },
+  "settings": [
+    {
+      "type": "group",
+      "title": { "en": "Connection Mode" },
+      "children": [
+        {
+          "id": "auth_mode",
+          "type": "dropdown",
+          "title": { "en": "Authentication mode" },
+          "hint": { "en": "Select how to connect to Ajax Systems" },
+          "value": "user",
+          "values": [
+            { "id": "user", "title": { "en": "User Mode (API Key + Login)" } },
+            { "id": "company", "title": { "en": "Company Mode (Company Token)" } },
+            { "id": "proxy", "title": { "en": "Proxy Mode (Custom Proxy Server)" } }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": { "en": "API Credentials" },
+      "children": [
+        {
+          "id": "api_key",
+          "type": "text",
+          "title": { "en": "API Key" },
+          "hint": { "en": "Your Ajax Systems Enterprise API key (X-Api-Key)" },
+          "value": ""
+        },
+        {
+          "id": "email",
+          "type": "text",
+          "title": { "en": "Email" },
+          "hint": { "en": "Ajax account email (User/Proxy mode)" },
+          "value": ""
+        },
+        {
+          "id": "password",
+          "type": "password",
+          "title": { "en": "Password" },
+          "hint": { "en": "Ajax account password (User/Proxy mode)" },
+          "value": ""
+        },
+        {
+          "id": "user_role",
+          "type": "dropdown",
+          "title": { "en": "User role" },
+          "value": "USER",
+          "values": [
+            { "id": "USER", "title": { "en": "User" } },
+            { "id": "PRO", "title": { "en": "PRO (Installer)" } }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": { "en": "Company Mode" },
+      "children": [
+        {
+          "id": "company_id",
+          "type": "text",
+          "title": { "en": "Company ID" },
+          "hint": { "en": "Your company identifier (Company mode only)" },
+          "value": ""
+        },
+        {
+          "id": "company_token",
+          "type": "password",
+          "title": { "en": "Company Token" },
+          "hint": { "en": "X-Company-Token (Company mode only)" },
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": { "en": "Proxy Mode" },
+      "children": [
+        {
+          "id": "proxy_url",
+          "type": "text",
+          "title": { "en": "Proxy URL" },
+          "hint": { "en": "URL of the Ajax proxy server (Proxy mode only)" },
+          "value": ""
+        },
+        {
+          "id": "verify_ssl",
+          "type": "checkbox",
+          "title": { "en": "Verify SSL" },
+          "hint": { "en": "Verify SSL certificates for proxy connections" },
+          "value": true
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": { "en": "Real-Time Events (SQS)" },
+      "children": [
+        {
+          "id": "sqs_enabled",
+          "type": "checkbox",
+          "title": { "en": "Enable SQS" },
+          "hint": { "en": "Enable AWS SQS for real-time events (Direct mode only)" },
+          "value": false
+        },
+        {
+          "id": "sqs_access_key",
+          "type": "text",
+          "title": { "en": "AWS Access Key" },
+          "value": ""
+        },
+        {
+          "id": "sqs_secret_key",
+          "type": "password",
+          "title": { "en": "AWS Secret Key" },
+          "value": ""
+        },
+        {
+          "id": "sqs_events_queue",
+          "type": "text",
+          "title": { "en": "Events Queue Name" },
+          "hint": { "en": "e.g., ajax-XXXX-events-prod.fifo" },
+          "value": ""
+        },
+        {
+          "id": "sqs_updates_queue",
+          "type": "text",
+          "title": { "en": "Updates Queue Name" },
+          "hint": { "en": "e.g., ajax-XXXX-updates-prod.fifo" },
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": { "en": "Polling Intervals" },
+      "children": [
+        {
+          "id": "poll_armed",
+          "type": "number",
+          "title": { "en": "Armed interval (seconds)" },
+          "hint": { "en": "Polling interval when system is armed (10-300)" },
+          "value": 10,
+          "min": 10,
+          "max": 300
+        },
+        {
+          "id": "poll_disarmed",
+          "type": "number",
+          "title": { "en": "Disarmed interval (seconds)" },
+          "hint": { "en": "Polling interval when system is disarmed (10-300)" },
+          "value": 30,
+          "min": 10,
+          "max": 300
+        }
+      ]
+    }
+  ]
+}

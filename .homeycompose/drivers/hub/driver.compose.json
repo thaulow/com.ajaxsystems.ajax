@@ -1,0 +1,53 @@
+{
+  "name": {
+    "en": "Ajax Hub"
+  },
+  "class": "homealarm",
+  "capabilities": [
+    "homealarm_state",
+    "ajax_night_mode",
+    "alarm_tamper",
+    "measure_battery",
+    "ajax_gsm_signal",
+    "ajax_wifi_signal",
+    "ajax_connection_state",
+    "ajax_firmware_version"
+  ],
+  "energy": { "batteries": ["INTERNAL"] },
+  "capabilitiesOptions": {
+    "homealarm_state": {
+      "values": [
+        { "id": "armed", "title": { "en": "Armed" } },
+        { "id": "disarmed", "title": { "en": "Disarmed" } },
+        { "id": "partially_armed", "title": { "en": "Partially Armed" } }
+      ]
+    }
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "images": {
+    "small": "/drivers/hub/assets/images/small.png",
+    "large": "/drivers/hub/assets/images/large.png",
+    "xlarge": "/drivers/hub/assets/images/xlarge.png"
+  },
+  "pair": [
+    {
+      "id": "login_credentials",
+      "template": "login_credentials",
+      "options": {
+        "logo": "/drivers/hub/assets/icon.svg",
+        "usernameLabel": { "en": "Email" },
+        "passwordLabel": { "en": "Password" }
+      }
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "next": "add_devices" }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "hub_armed",
+  "title": { "en": "Hub was armed" },
+  "hint": { "en": "Triggers when an Ajax hub is armed" },
+  "tokens": [
+    { "name": "hub_name", "type": "string", "title": { "en": "Hub Name" } }
+  ]
+}

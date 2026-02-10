@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "External Contact"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/contact.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "External contact open"
+  },
+  "insightsTitleFalse": {
+    "en": "External contact closed"
+  }
+}

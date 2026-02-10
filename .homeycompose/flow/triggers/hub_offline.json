@@ -1,0 +1,8 @@
+{
+  "id": "hub_offline",
+  "title": { "en": "Hub went offline" },
+  "hint": { "en": "Triggers when an Ajax hub loses connection" },
+  "tokens": [
+    { "name": "hub_name", "type": "string", "title": { "en": "Hub Name" } }
+  ]
+}

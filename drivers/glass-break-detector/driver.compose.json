@@ -1,0 +1,17 @@
+{
+  "name": { "en": "Ajax Glass Break Detector" },
+  "class": "sensor",
+  "capabilities": ["ajax_glass_break", "alarm_tamper", "measure_battery", "ajax_signal_strength"],
+  "energy": { "batteries": ["INTERNAL"] },
+  "images": {
+    "small": "/drivers/glass-break-detector/assets/images/small.png",
+    "large": "/drivers/glass-break-detector/assets/images/large.png",
+    "xlarge": "/drivers/glass-break-detector/assets/images/xlarge.png"
+  },
+  "platforms": ["local"],
+  "connectivity": ["cloud"],
+  "pair": [
+    { "id": "list_devices", "template": "list_devices", "navigation": { "next": "add_devices" } },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}

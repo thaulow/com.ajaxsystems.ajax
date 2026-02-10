@@ -1,0 +1,12 @@
+{
+  "id": "hub_is_armed",
+  "title": { "en": "Hub !{{is|is not}} armed" },
+  "hint": { "en": "Check if a specific hub is currently armed" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}
