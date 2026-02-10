@@ -1,0 +1,9 @@
+{
+  "id": "tamper_restored",
+  "title": { "en": "Tamper alarm restored" },
+  "hint": { "en": "Triggers when a tamper condition is cleared" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

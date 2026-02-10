@@ -1,0 +1,9 @@
+{
+  "id": "zone_bypassed",
+  "title": { "en": "A zone was bypassed" },
+  "hint": { "en": "Triggers when a sensor zone is bypassed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

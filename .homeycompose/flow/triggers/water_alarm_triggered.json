@@ -1,0 +1,9 @@
+{
+  "id": "water_alarm_triggered",
+  "title": { "en": "Water leak detected" },
+  "hint": { "en": "Triggers when a water leak is detected" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

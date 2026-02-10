@@ -1,0 +1,9 @@
+{
+  "id": "fire_alarm_triggered",
+  "title": { "en": "Fire alarm triggered" },
+  "hint": { "en": "Triggers when a fire, smoke, or high temperature alarm is detected" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

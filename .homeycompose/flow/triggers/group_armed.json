@@ -1,0 +1,9 @@
+{
+  "id": "group_armed",
+  "title": { "en": "A group was armed" },
+  "hint": { "en": "Triggers when a security group is armed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

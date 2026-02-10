@@ -1,0 +1,9 @@
+{
+  "id": "group_disarmed",
+  "title": { "en": "A group was disarmed" },
+  "hint": { "en": "Triggers when a security group is disarmed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

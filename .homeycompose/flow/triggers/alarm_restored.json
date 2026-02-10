@@ -1,0 +1,10 @@
+{
+  "id": "alarm_restored",
+  "title": { "en": "An alarm was restored" },
+  "hint": { "en": "Triggers when any alarm is cleared or restored" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "alarm_type", "type": "string", "title": { "en": "Alarm Type" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

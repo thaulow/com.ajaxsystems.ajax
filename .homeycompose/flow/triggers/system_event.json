@@ -1,0 +1,9 @@
+{
+  "id": "system_event",
+  "title": { "en": "System event occurred" },
+  "hint": { "en": "Triggers on system lifecycle events: power on/off, factory reset, firmware update, settings change, or periodic test" },
+  "tokens": [
+    { "name": "event_type", "type": "string", "title": { "en": "Event Type" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

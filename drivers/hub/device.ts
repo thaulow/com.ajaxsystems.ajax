@@ -23,6 +23,18 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   async onInit(): Promise<void> {
     this.log('Hub device init:', this.getName());
 
+    // Migrate capabilities for existing devices (added in v1.0.11)
+    const requiredCaps = [
+      'alarm_generic', 'alarm_fire', 'alarm_water', 'alarm_co',
+      'alarm_battery', 'ajax_ac_power', 'ajax_device_lost',
+      'ajax_rf_interference', 'ajax_last_event',
+    ];
+    for (const cap of requiredCaps) {
+      if (!this.hasCapability(cap)) {
+        await this.addCapability(cap).catch(this.error);
+      }
+    }
+
     const connectionMode = this.getStoreValue('connectionMode');
 
     if (connectionMode === 'sia') {
@@ -76,7 +88,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     await this.safeSetCapability('alarm_generic', false);
     await this.safeSetCapability('alarm_fire', false);
     await this.safeSetCapability('alarm_water', false);
+    await this.safeSetCapability('alarm_co', false);
     await this.safeSetCapability('alarm_tamper', false);
+    await this.safeSetCapability('alarm_battery', false);
+    await this.safeSetCapability('ajax_ac_power', true);
+    await this.safeSetCapability('ajax_device_lost', false);
+    await this.safeSetCapability('ajax_rf_interference', false);
     await this.safeSetCapability('ajax_connection_state', false);
     await this.safeSetCapability('ajax_last_event', 'Waiting for events...');
 
@@ -173,141 +190,194 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     this.safeSetCapability('ajax_last_event', eventText);
 
     switch (event.type) {
+      // ── Arming ─────────────────────────────────
       case 'arm':
         this.safeSetCapability('homealarm_state', 'armed');
         this.safeSetCapability('ajax_night_mode', false);
-        // Clear alarms on arm
-        this.safeSetCapability('alarm_generic', false);
-        this.safeSetCapability('alarm_fire', false);
-        this.safeSetCapability('alarm_water', false);
-        this.safeSetCapability('alarm_tamper', false);
+        this.clearAllAlarms();
+        this.triggerCard('hub_armed', { hub_name: this.getName() });
         break;
 
       case 'disarm':
         this.safeSetCapability('homealarm_state', 'disarmed');
         this.safeSetCapability('ajax_night_mode', false);
-        // Clear alarms on disarm
-        this.safeSetCapability('alarm_generic', false);
-        this.safeSetCapability('alarm_fire', false);
-        this.safeSetCapability('alarm_water', false);
-        this.safeSetCapability('alarm_tamper', false);
+        this.clearAllAlarms();
+        this.triggerCard('hub_disarmed', { hub_name: this.getName() });
         break;
 
       case 'night_arm':
         this.safeSetCapability('ajax_night_mode', true);
+        this.triggerCard('night_mode_armed', { zone: event.zone, description: event.description });
         break;
 
       case 'night_disarm':
         this.safeSetCapability('ajax_night_mode', false);
+        this.triggerCard('night_mode_disarmed', { zone: event.zone, description: event.description });
         break;
 
       case 'partial_arm':
         this.safeSetCapability('homealarm_state', 'partially_armed');
+        this.triggerCard('hub_armed', { hub_name: this.getName() });
         break;
 
+      case 'group_arm':
+        this.triggerCard('group_armed', { zone: event.zone, description: event.description });
+        break;
+
+      case 'group_disarm':
+        this.triggerCard('group_disarmed', { zone: event.zone, description: event.description });
+        break;
+
+      case 'armed_with_faults':
+        this.safeSetCapability('homealarm_state', 'armed');
+        this.triggerCard('armed_with_faults', { zone: event.zone, description: event.description });
+        break;
+
+      case 'arming_failed':
+        this.triggerCard('arming_failed', { zone: event.zone, description: event.description });
+        break;
+
+      // ── Alarms ─────────────────────────────────
+      case 'alarm':
+        this.safeSetCapability('alarm_generic', true);
+        if (event.category === 'fire') {
+          this.safeSetCapability('alarm_fire', true);
+          this.triggerCard('fire_alarm_triggered', { zone: event.zone, description: event.description });
+        } else if (event.category === 'water') {
+          this.safeSetCapability('alarm_water', true);
+          this.triggerCard('water_alarm_triggered', { zone: event.zone, description: event.description });
+        } else if (event.category === 'gas') {
+          this.safeSetCapability('alarm_co', true);
+          this.triggerCard('gas_co_alarm', { zone: event.zone, description: event.description });
+        } else if (event.category === 'burglary') {
+          this.triggerCard('burglary_alarm', { zone: event.zone, description: event.description });
+        } else if (event.category === 'medical') {
+          this.triggerCard('medical_alarm', { zone: event.zone, description: event.description });
+        }
+        break;
+
+      case 'alarm_restore':
+        if (event.category === 'fire') this.safeSetCapability('alarm_fire', false);
+        else if (event.category === 'water') this.safeSetCapability('alarm_water', false);
+        else if (event.category === 'gas') this.safeSetCapability('alarm_co', false);
+        this.checkAndClearGenericAlarm();
+        this.triggerCard('alarm_restored', {
+          zone: event.zone,
+          alarm_type: event.category || 'unknown',
+          description: event.description,
+        });
+        break;
+
+      // ── Panic & Duress ─────────────────────────
+      case 'panic':
+        this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('panic_alarm', { zone: event.zone, description: event.description });
+        break;
+
+      case 'duress':
+        this.safeSetCapability('homealarm_state', 'disarmed');
+        this.safeSetCapability('ajax_night_mode', false);
+        this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('duress_alarm', { zone: event.zone, description: event.description });
+        break;
+
+      // ── Tamper ─────────────────────────────────
       case 'tamper':
         this.safeSetCapability('alarm_tamper', true);
         this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('tamper_alarm', { zone: event.zone, description: event.description });
         break;
 
       case 'tamper_restore':
         this.safeSetCapability('alarm_tamper', false);
-        break;
-
-      case 'panic':
-        // Panic button alarm - set generic + trigger both flow cards
-        this.safeSetCapability('alarm_generic', true);
-        this.homey.flow.getTriggerCard('panic_alarm')
-          ?.trigger(this, {
-            zone: event.zone,
-            description: event.description,
-          })
-          .catch(this.error);
-        this.homey.flow.getTriggerCard('alarm_event')
-          ?.trigger(this, {
-            event_type: 'panic',
-            device_name: `Zone ${event.zone}`,
-            description: event.description,
-          })
-          .catch(this.error);
-        break;
-
-      case 'duress':
-        // Duress (coerced disarm) - disarm the system but trigger alarm
-        this.safeSetCapability('homealarm_state', 'disarmed');
-        this.safeSetCapability('ajax_night_mode', false);
-        this.safeSetCapability('alarm_generic', true);
-        this.homey.flow.getTriggerCard('duress_alarm')
-          ?.trigger(this, {
-            zone: event.zone,
-            description: event.description,
-          })
-          .catch(this.error);
-        this.homey.flow.getTriggerCard('alarm_event')
-          ?.trigger(this, {
-            event_type: 'duress',
-            device_name: `Zone ${event.zone}`,
-            description: event.description,
-          })
-          .catch(this.error);
-        break;
-
-      case 'alarm':
-        // Set the generic alarm
-        this.safeSetCapability('alarm_generic', true);
-
-        // Set specific alarm type based on CID category
-        if (event.category === 'fire') {
-          this.safeSetCapability('alarm_fire', true);
-        } else if (event.category === 'water') {
-          this.safeSetCapability('alarm_water', true);
-        }
-
-        // Trigger the alarm flow card
-        this.homey.flow.getTriggerCard('alarm_event')
-          ?.trigger(this, {
-            event_type: event.category || 'alarm',
-            device_name: `Zone ${event.zone}`,
-            description: event.description,
-          })
-          .catch(this.error);
-        break;
-
-      case 'alarm_restore':
-        // Clear specific alarm type based on CID category
-        if (event.category === 'fire') {
-          this.safeSetCapability('alarm_fire', false);
-        } else if (event.category === 'water') {
-          this.safeSetCapability('alarm_water', false);
-        }
-        // Check if all alarms are cleared
         this.checkAndClearGenericAlarm();
+        this.triggerCard('tamper_restored', { zone: event.zone, description: event.description });
         break;
 
+      // ── Power / Battery ────────────────────────
+      case 'power_trouble':
+        this.safeSetCapability('alarm_battery', true);
+        if (event.code === '301' || event.code === '337') {
+          this.safeSetCapability('ajax_ac_power', false);
+        }
+        this.triggerCard('power_trouble', {
+          zone: event.zone,
+          trouble_type: event.description,
+          description: event.description,
+        });
+        break;
+
+      case 'power_restore':
+        this.safeSetCapability('alarm_battery', false);
+        if (event.code === '301' || event.code === '337') {
+          this.safeSetCapability('ajax_ac_power', true);
+        }
+        this.triggerCard('power_restored', {
+          zone: event.zone,
+          trouble_type: event.description,
+          description: event.description,
+        });
+        break;
+
+      // ── Device Communication ───────────────────
+      case 'device_lost':
+        this.safeSetCapability('ajax_device_lost', true);
+        this.triggerCard('device_connection_lost', { zone: event.zone, description: event.description });
+        break;
+
+      case 'device_restore':
+        this.safeSetCapability('ajax_device_lost', false);
+        this.triggerCard('device_connection_restored', { zone: event.zone, description: event.description });
+        break;
+
+      // ── Trouble ────────────────────────────────
       case 'trouble':
         this.safeSetCapability('alarm_generic', true);
-        this.homey.flow.getTriggerCard('alarm_event')
-          ?.trigger(this, {
-            event_type: event.category || 'trouble',
-            device_name: `Zone ${event.zone}`,
-            description: event.description,
-          })
-          .catch(this.error);
+        if (event.code === '344') this.safeSetCapability('ajax_rf_interference', true);
+        this.triggerCard('trouble_event', {
+          zone: event.zone,
+          trouble_type: event.description,
+          description: event.description,
+        });
         break;
 
       case 'trouble_restore':
+        if (event.code === '344') this.safeSetCapability('ajax_rf_interference', false);
         this.checkAndClearGenericAlarm();
+        this.triggerCard('trouble_restored', {
+          zone: event.zone,
+          trouble_type: event.description,
+          description: event.description,
+        });
         break;
 
+      // ── Bypass ─────────────────────────────────
+      case 'bypass':
+        this.triggerCard('zone_bypassed', { zone: event.zone, description: event.description });
+        break;
+
+      case 'unbypass':
+        this.triggerCard('zone_unbypassed', { zone: event.zone, description: event.description });
+        break;
+
+      // ── System & Test ──────────────────────────
       case 'system':
-        // System lifecycle events (reboot, firmware update, factory reset)
-        this.log(`SIA system event: ${event.description}`);
+        this.triggerCard('system_event', { event_type: event.description, description: event.description });
         break;
 
       case 'test':
-        this.log('SIA supervision/test event received');
+        this.triggerCard('system_event', { event_type: 'Automatic test', description: event.description });
         break;
     }
+
+    // Always fire the generic catch-all flow card for every event
+    this.triggerCard('alarm_event', {
+      hub_name: this.getName(),
+      event_type: event.type,
+      device_name: `Zone ${event.zone}`,
+      room_name: '',
+      description: event.description,
+    });
 
     // Update connection state - we're receiving events
     this.safeSetCapability('ajax_connection_state', true);
@@ -320,11 +390,26 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     this.setAvailable().catch(this.error);
   }
 
+  private triggerCard(cardId: string, tokens: Record<string, any>): void {
+    this.homey.flow.getTriggerCard(cardId)
+      ?.trigger(this, tokens)
+      .catch(this.error);
+  }
+
+  private clearAllAlarms(): void {
+    this.safeSetCapability('alarm_generic', false);
+    this.safeSetCapability('alarm_fire', false);
+    this.safeSetCapability('alarm_water', false);
+    this.safeSetCapability('alarm_co', false);
+    this.safeSetCapability('alarm_tamper', false);
+  }
+
   private checkAndClearGenericAlarm(): void {
     const fire = this.getCapabilityValue('alarm_fire');
     const water = this.getCapabilityValue('alarm_water');
     const tamper = this.getCapabilityValue('alarm_tamper');
-    if (!fire && !water && !tamper) {
+    const co = this.getCapabilityValue('alarm_co');
+    if (!fire && !water && !tamper && !co) {
       this.safeSetCapability('alarm_generic', false);
     }
   }

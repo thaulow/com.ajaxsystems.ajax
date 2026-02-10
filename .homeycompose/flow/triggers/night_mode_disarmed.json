@@ -1,0 +1,9 @@
+{
+  "id": "night_mode_disarmed",
+  "title": { "en": "Night mode was deactivated" },
+  "hint": { "en": "Triggers when night mode is disarmed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

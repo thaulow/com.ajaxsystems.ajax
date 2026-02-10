@@ -331,12 +331,269 @@
         ]
       },
       {
+        "id": "alarm_restored",
+        "title": {
+          "en": "An alarm was restored"
+        },
+        "hint": {
+          "en": "Triggers when any alarm is cleared or restored"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "alarm_type",
+            "type": "string",
+            "title": {
+              "en": "Alarm Type"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "armed_with_faults",
+        "title": {
+          "en": "Armed with malfunctions"
+        },
+        "hint": {
+          "en": "Triggers when the system is armed despite device faults or malfunctions"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "arming_failed",
+        "title": {
+          "en": "Arming attempt failed"
+        },
+        "hint": {
+          "en": "Triggers when the system could not be armed"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "burglary_alarm",
+        "title": {
+          "en": "Burglary alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when an intrusion or burglary alarm is detected"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "device_connection_lost",
+        "title": {
+          "en": "Device connection lost"
+        },
+        "hint": {
+          "en": "Triggers when a sensor or device loses connection to the hub"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "device_connection_restored",
+        "title": {
+          "en": "Device connection restored"
+        },
+        "hint": {
+          "en": "Triggers when a sensor or device reconnects to the hub"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
         "id": "duress_alarm",
         "title": {
           "en": "Duress alarm triggered"
         },
         "hint": {
           "en": "Triggers when the system is disarmed under duress (coercion). This is a silent distress signal."
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "fire_alarm_triggered",
+        "title": {
+          "en": "Fire alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when a fire, smoke, or high temperature alarm is detected"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "gas_co_alarm",
+        "title": {
+          "en": "Gas / CO alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when a gas or carbon monoxide alarm is detected"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "group_armed",
+        "title": {
+          "en": "A group was armed"
+        },
+        "hint": {
+          "en": "Triggers when a security group is armed"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "group_disarmed",
+        "title": {
+          "en": "A group was disarmed"
+        },
+        "hint": {
+          "en": "Triggers when a security group is disarmed"
         },
         "tokens": [
           {
@@ -428,12 +685,365 @@
         ]
       },
       {
+        "id": "medical_alarm",
+        "title": {
+          "en": "Medical alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when a medical emergency alarm is activated"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "night_mode_armed",
+        "title": {
+          "en": "Night mode was activated"
+        },
+        "hint": {
+          "en": "Triggers when night mode is armed"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "night_mode_disarmed",
+        "title": {
+          "en": "Night mode was deactivated"
+        },
+        "hint": {
+          "en": "Triggers when night mode is disarmed"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
         "id": "panic_alarm",
         "title": {
           "en": "Panic alarm triggered"
         },
         "hint": {
           "en": "Triggers when a panic button is pressed on any Ajax device"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "power_restored",
+        "title": {
+          "en": "Power problem resolved"
+        },
+        "hint": {
+          "en": "Triggers when a power problem is resolved (battery charged, AC power restored, etc.)"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "trouble_type",
+            "type": "string",
+            "title": {
+              "en": "Trouble Type"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "power_trouble",
+        "title": {
+          "en": "Power problem detected"
+        },
+        "hint": {
+          "en": "Triggers on AC power loss, low battery, battery missing, or external power failure"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "trouble_type",
+            "type": "string",
+            "title": {
+              "en": "Trouble Type"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "system_event",
+        "title": {
+          "en": "System event occurred"
+        },
+        "hint": {
+          "en": "Triggers on system lifecycle events: power on/off, factory reset, firmware update, settings change, or periodic test"
+        },
+        "tokens": [
+          {
+            "name": "event_type",
+            "type": "string",
+            "title": {
+              "en": "Event Type"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "tamper_alarm",
+        "title": {
+          "en": "Tamper alarm triggered"
+        },
+        "hint": {
+          "en": "Triggers when a device lid is opened or a device is moved"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "tamper_restored",
+        "title": {
+          "en": "Tamper alarm restored"
+        },
+        "hint": {
+          "en": "Triggers when a tamper condition is cleared"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "trouble_event",
+        "title": {
+          "en": "A trouble condition occurred"
+        },
+        "hint": {
+          "en": "Triggers on sensor trouble: fire sensor failure, smoke chamber dirty, RF interference, brute-force attempt, or accelerometer fault"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "trouble_type",
+            "type": "string",
+            "title": {
+              "en": "Trouble Type"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "trouble_restored",
+        "title": {
+          "en": "A trouble condition resolved"
+        },
+        "hint": {
+          "en": "Triggers when a trouble condition is cleared"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "trouble_type",
+            "type": "string",
+            "title": {
+              "en": "Trouble Type"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "water_alarm_triggered",
+        "title": {
+          "en": "Water leak detected"
+        },
+        "hint": {
+          "en": "Triggers when a water leak is detected"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "zone_bypassed",
+        "title": {
+          "en": "A zone was bypassed"
+        },
+        "hint": {
+          "en": "Triggers when a sensor zone is bypassed"
+        },
+        "tokens": [
+          {
+            "name": "zone",
+            "type": "number",
+            "title": {
+              "en": "Zone"
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "title": {
+              "en": "Description"
+            }
+          }
+        ]
+      },
+      {
+        "id": "zone_unbypassed",
+        "title": {
+          "en": "A zone bypass was removed"
+        },
+        "hint": {
+          "en": "Triggers when a zone bypass is removed"
         },
         "tokens": [
           {
@@ -1092,6 +1702,23 @@
     }
   ],
   "capabilities": {
+    "ajax_ac_power": {
+      "type": "boolean",
+      "title": {
+        "en": "AC Power"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/connection.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "AC power connected"
+      },
+      "insightsTitleFalse": {
+        "en": "AC power lost"
+      }
+    },
     "ajax_button_pressed": {
       "type": "string",
       "title": {
@@ -1113,6 +1740,23 @@
       "uiComponent": "sensor",
       "icon": "/assets/capabilities/connection.svg",
       "insights": false
+    },
+    "ajax_device_lost": {
+      "type": "boolean",
+      "title": {
+        "en": "Device Lost"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/signal.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "A device has lost connection"
+      },
+      "insightsTitleFalse": {
+        "en": "All devices connected"
+      }
     },
     "ajax_extra_contact": {
       "type": "boolean",
@@ -1202,6 +1846,23 @@
       },
       "insightsTitleFalse": {
         "en": "Night mode disabled"
+      }
+    },
+    "ajax_rf_interference": {
+      "type": "boolean",
+      "title": {
+        "en": "RF Interference"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/signal.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "RF interference detected"
+      },
+      "insightsTitleFalse": {
+        "en": "RF interference cleared"
       }
     },
     "ajax_signal_strength": {

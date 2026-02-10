@@ -1,0 +1,9 @@
+{
+  "id": "gas_co_alarm",
+  "title": { "en": "Gas / CO alarm triggered" },
+  "hint": { "en": "Triggers when a gas or carbon monoxide alarm is detected" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

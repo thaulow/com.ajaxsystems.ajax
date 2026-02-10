@@ -1,0 +1,9 @@
+{
+  "id": "device_connection_lost",
+  "title": { "en": "Device connection lost" },
+  "hint": { "en": "Triggers when a sensor or device loses connection to the hub" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

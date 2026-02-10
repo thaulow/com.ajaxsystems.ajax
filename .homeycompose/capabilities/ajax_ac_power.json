@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "AC Power"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/connection.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "AC power connected"
+  },
+  "insightsTitleFalse": {
+    "en": "AC power lost"
+  }
+}

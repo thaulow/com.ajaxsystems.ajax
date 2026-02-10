@@ -27,8 +27,14 @@ export interface SiaServerConfig {
 export interface SiaAlarmEvent {
   account: string;
   type: 'arm' | 'disarm' | 'night_arm' | 'night_disarm' | 'partial_arm' |
+        'group_arm' | 'group_disarm' |
+        'armed_with_faults' | 'arming_failed' |
         'alarm' | 'alarm_restore' | 'tamper' | 'tamper_restore' |
-        'trouble' | 'trouble_restore' | 'test' | 'heartbeat' |
+        'trouble' | 'trouble_restore' |
+        'power_trouble' | 'power_restore' |
+        'device_lost' | 'device_restore' |
+        'bypass' | 'unbypass' |
+        'test' | 'heartbeat' |
         'panic' | 'duress' | 'system' | 'unknown';
   /** More specific alarm category */
   category?: string;
@@ -395,31 +401,71 @@ export class SiaServer extends EventEmitter {
       raw: message.raw,
     };
 
-    // Determine event type based on category first (from SIA code mapping),
-    // then fall back to CID code range checks for ADM-CID messages.
+    // Determine event type based on category and code.
+    // Order matters: more specific checks before general ones.
+
+    // 1. Duress (highest priority)
     if (event.category === 'duress') {
       alarmEvent.type = 'duress';
-    } else if (event.category === 'panic') {
+    }
+    // 2. Panic
+    else if (event.category === 'panic') {
       alarmEvent.type = event.isRestore ? 'alarm_restore' : 'panic';
-    } else if (event.category === 'system') {
-      alarmEvent.type = 'system';
-    } else if (event.category === 'arming') {
-      // Arming events: qualifier 1 = arm, qualifier 3 = disarm
-      if (isNightArmEvent(event.code)) {
-        alarmEvent.type = event.qualifier === 1 ? 'night_arm' : 'night_disarm';
-      } else if (event.code === '455') {
-        // Unsuccessful arming - log it but don't change state
-        alarmEvent.type = 'trouble';
+    }
+    // 3. Bypass
+    else if (event.category === 'bypass') {
+      alarmEvent.type = event.isRestore ? 'unbypass' : 'bypass';
+    }
+    // 4. Arming - fine-grained routing
+    else if (event.category === 'arming') {
+      if (event.code === '455') {
+        alarmEvent.type = 'arming_failed';
+      } else if (event.code === '401' || event.code === '409') {
+        alarmEvent.type = 'armed_with_faults';
+      } else if (event.code === '402') {
+        alarmEvent.type = event.qualifier === 1 ? 'group_arm' : 'group_disarm';
+      } else if (isNightArmEvent(event.code)) {
+        // Night arm code 441: check siaCode to distinguish NB/NF (armed with faults)
+        const sc = event.siaCode;
+        if (sc === 'NB' || sc === 'NF') {
+          alarmEvent.type = 'armed_with_faults';
+        } else {
+          alarmEvent.type = event.qualifier === 1 ? 'night_arm' : 'night_disarm';
+        }
       } else {
         alarmEvent.type = event.qualifier === 1 ? 'arm' : 'disarm';
       }
-    } else if (isTamperAlarm(event.code)) {
+    }
+    // 5. Communication - split device-level vs hub-level
+    else if (event.category === 'communication') {
+      if (event.code === '381') {
+        alarmEvent.type = event.isRestore ? 'device_restore' : 'device_lost';
+      } else {
+        alarmEvent.type = event.isRestore ? 'trouble_restore' : 'trouble';
+      }
+    }
+    // 6. Tamper
+    else if (isTamperAlarm(event.code)) {
       alarmEvent.type = event.isRestore ? 'tamper_restore' : 'tamper';
-    } else if (isAlarmEvent(event.code)) {
+    }
+    // 7. Alarms (CID 100-199)
+    else if (isAlarmEvent(event.code)) {
       alarmEvent.type = event.isRestore ? 'alarm_restore' : 'alarm';
-    } else if (isTroubleEvent(event.code)) {
+    }
+    // 8. Power/battery subset of trouble (CID 301, 302, 311, 337, 384)
+    else if (['301', '302', '311', '337', '384'].includes(event.code)) {
+      alarmEvent.type = event.isRestore ? 'power_restore' : 'power_trouble';
+    }
+    // 9. System events
+    else if (event.category === 'system') {
+      alarmEvent.type = 'system';
+    }
+    // 10. Remaining trouble (CID 300-399)
+    else if (isTroubleEvent(event.code)) {
       alarmEvent.type = event.isRestore ? 'trouble_restore' : 'trouble';
-    } else if (isTestEvent(event.code)) {
+    }
+    // 11. Test (CID 600-699)
+    else if (isTestEvent(event.code)) {
       alarmEvent.type = 'test';
     }
 

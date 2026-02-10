@@ -1,0 +1,9 @@
+{
+  "id": "night_mode_armed",
+  "title": { "en": "Night mode was activated" },
+  "hint": { "en": "Triggers when night mode is armed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

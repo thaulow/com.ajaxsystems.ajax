@@ -1,0 +1,9 @@
+{
+  "id": "device_connection_restored",
+  "title": { "en": "Device connection restored" },
+  "hint": { "en": "Triggers when a sensor or device reconnects to the hub" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "medical_alarm",
+  "title": { "en": "Medical alarm triggered" },
+  "hint": { "en": "Triggers when a medical emergency alarm is activated" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

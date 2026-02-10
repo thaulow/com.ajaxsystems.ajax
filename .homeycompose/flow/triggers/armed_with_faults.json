@@ -1,0 +1,9 @@
+{
+  "id": "armed_with_faults",
+  "title": { "en": "Armed with malfunctions" },
+  "hint": { "en": "Triggers when the system is armed despite device faults or malfunctions" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

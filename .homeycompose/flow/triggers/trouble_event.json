@@ -1,0 +1,10 @@
+{
+  "id": "trouble_event",
+  "title": { "en": "A trouble condition occurred" },
+  "hint": { "en": "Triggers on sensor trouble: fire sensor failure, smoke chamber dirty, RF interference, brute-force attempt, or accelerometer fault" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "trouble_type", "type": "string", "title": { "en": "Trouble Type" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

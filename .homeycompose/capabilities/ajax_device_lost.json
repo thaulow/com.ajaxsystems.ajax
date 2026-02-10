@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Device Lost"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/signal.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "A device has lost connection"
+  },
+  "insightsTitleFalse": {
+    "en": "All devices connected"
+  }
+}

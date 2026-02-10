@@ -1,0 +1,9 @@
+{
+  "id": "zone_unbypassed",
+  "title": { "en": "A zone bypass was removed" },
+  "hint": { "en": "Triggers when a zone bypass is removed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

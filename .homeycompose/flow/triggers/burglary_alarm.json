@@ -1,0 +1,9 @@
+{
+  "id": "burglary_alarm",
+  "title": { "en": "Burglary alarm triggered" },
+  "hint": { "en": "Triggers when an intrusion or burglary alarm is detected" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

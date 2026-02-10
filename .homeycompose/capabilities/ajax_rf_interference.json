@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "RF Interference"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/signal.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "RF interference detected"
+  },
+  "insightsTitleFalse": {
+    "en": "RF interference cleared"
+  }
+}

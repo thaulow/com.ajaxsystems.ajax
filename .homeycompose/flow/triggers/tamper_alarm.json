@@ -1,0 +1,9 @@
+{
+  "id": "tamper_alarm",
+  "title": { "en": "Tamper alarm triggered" },
+  "hint": { "en": "Triggers when a device lid is opened or a device is moved" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "power_restored",
+  "title": { "en": "Power problem resolved" },
+  "hint": { "en": "Triggers when a power problem is resolved (battery charged, AC power restored, etc.)" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "trouble_type", "type": "string", "title": { "en": "Trouble Type" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

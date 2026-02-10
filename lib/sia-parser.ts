@@ -336,6 +336,8 @@ export interface CidEvent {
   description: string;
   /** Whether this is a restore (qualifier 3) */
   isRestore: boolean;
+  /** Original 2-character SIA code (only set for SIA-DCS native events) */
+  siaCode?: string;
 }
 
 // ============================================================
@@ -572,6 +574,7 @@ function parseSiaEventData(data: string): CidEvent | null {
     category: mapping.category,
     description: mapping.description,
     isRestore: mapping.qualifier === 3,
+    siaCode,
   };
 }
 

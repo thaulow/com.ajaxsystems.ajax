@@ -1,0 +1,9 @@
+{
+  "id": "arming_failed",
+  "title": { "en": "Arming attempt failed" },
+  "hint": { "en": "Triggers when the system could not be armed" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}

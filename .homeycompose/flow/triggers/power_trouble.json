@@ -1,0 +1,10 @@
+{
+  "id": "power_trouble",
+  "title": { "en": "Power problem detected" },
+  "hint": { "en": "Triggers on AC power loss, low battery, battery missing, or external power failure" },
+  "tokens": [
+    { "name": "zone", "type": "number", "title": { "en": "Zone" } },
+    { "name": "trouble_type", "type": "string", "title": { "en": "Trouble Type" } },
+    { "name": "description", "type": "string", "title": { "en": "Description" } }
+  ]
+}
