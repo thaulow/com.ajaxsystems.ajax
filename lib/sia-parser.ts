@@ -371,65 +371,63 @@ function crc16arc(data: Buffer): number {
 export function parseSiaMessage(data: Buffer): SiaMessage | null {
   const str = data.toString('ascii').trim();
 
-  // Find the quoted content: everything between first and last quote
+  // SIA DC-09 wire format:
+  //   <LF><CRC><LEN>"<*PROTO>"<SEQ><RECV><LINE>#<ACCT>[<DATA>]<TS><CR>
+  //
+  // Quotes ONLY surround the protocol name (e.g. "*SIA-DCS").
+  // All other fields (sequence, receiver, line, account, data) follow
+  // AFTER the closing quote. The old firstQuote/lastQuote approach
+  // captured only the protocol name and lost everything else.
+
   const firstQuote = str.indexOf('"');
-  const lastQuote = str.lastIndexOf('"');
-  if (firstQuote === -1 || lastQuote === -1 || firstQuote === lastQuote) {
-    return null;
-  }
+  if (firstQuote === -1) return null;
+  const secondQuote = str.indexOf('"', firstQuote + 1);
+  if (secondQuote === -1) return null;
 
-  const content = str.substring(firstQuote + 1, lastQuote);
+  // Protocol name between the two quotes (may have * prefix for unencrypted)
+  const protocolRaw = str.substring(firstQuote + 1, secondQuote);
 
-  // Extract CRC and LEN from the prefix before the first quote
-  // Format: <LF><CRC><0LEN>"<body><CR>
+  // Everything after the closing protocol quote (before CR, already trimmed)
+  const afterProtocol = str.substring(secondQuote + 1);
+
+  // Extract CRC from the prefix before the first quote
+  // Format: <CRC 4 hex><LEN 4 hex>"...
   const prefix = str.substring(0, firstQuote);
   const cleanPrefix = prefix.replace(/^[\n\r\s]+/, '');
-
   let crcStr = '';
-  if (cleanPrefix.length >= 8) {
-    crcStr = cleanPrefix.substring(0, 4);
-  } else if (cleanPrefix.length >= 4) {
+  if (cleanPrefix.length >= 4) {
     crcStr = cleanPrefix.substring(0, 4);
   }
 
-  // Validate CRC - covers everything after the 8-char CRC+LEN header
-  // This includes the opening quote, content, closing quote, and timestamp (if any)
+  // CRC covers everything from the opening quote to the end (minus CR)
   const bodyForCrc = str.substring(firstQuote).replace(/\r$/, '');
   const expectedCrc = crc16arc(Buffer.from(bodyForCrc, 'ascii'));
   const receivedCrc = parseInt(crcStr, 16);
   const crcValid = !isNaN(receivedCrc) && receivedCrc === expectedCrc;
 
-  // Extract timestamp if present (after closing quote)
-  const afterQuote = str.substring(lastQuote + 1).trim();
+  // Extract timestamp from the end of the fields portion (if present)
   let timestamp: Date | undefined;
-  const tsMatch = afterQuote.match(/_(\d{2}):(\d{2}):(\d{2}),(\d{2})-(\d{2})-(\d{4})/);
+  let fields = afterProtocol;
+  const tsMatch = fields.match(/_(\d{2}):(\d{2}):(\d{2}),(\d{2})-(\d{2})-(\d{4})$/);
   if (tsMatch) {
-    const [, hh, mm, ss, MM, DD, YYYY] = tsMatch;
+    const [fullTs, hh, mm, ss, MM, DD, YYYY] = tsMatch;
     timestamp = new Date(
       parseInt(YYYY), parseInt(MM) - 1, parseInt(DD),
       parseInt(hh), parseInt(mm), parseInt(ss),
     );
+    fields = fields.substring(0, fields.length - fullTs.length);
   }
 
-  // Strip encryption indicator (* prefix) for parsing
-  // SIA DC-09 uses * before protocol name to indicate unencrypted messages
-  let cleanContent = content;
-  if (cleanContent.startsWith('*')) {
-    cleanContent = cleanContent.substring(1);
-  }
+  // Strip * prefix (unencrypted indicator) from protocol name
+  const protocol = protocolRaw.startsWith('*') ? protocolRaw.substring(1) : protocolRaw;
 
-  // Parse protocol and fields (handles all protocols including NULL)
-  let protocol = '';
-  let sequence = '';
-  let receiver = '';
-  let linePrefix = '';
-  let account = '';
-  let eventData = '';
+  // Raw content for logging: protocol + fields
+  const raw = protocolRaw + '"' + fields;
 
-  // Handle bare NULL (heartbeat with no account/fields)
-  if (cleanContent === 'NULL' || cleanContent === 'NULL[]') {
+  // Handle bare NULL heartbeat (no account/fields after the protocol)
+  if (protocol === 'NULL' && !fields.includes('#')) {
     return {
-      raw: content,
+      raw,
       sequence: '',
       receiver: '',
       linePrefix: '',
@@ -440,36 +438,37 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
     };
   }
 
-  // Standard SIA DC-09 format: quotes only after protocol name, fields concatenated
-  //   <proto>"<seq><Rrecv><Lline>#<acct>[<data>]
-  // Also handles legacy format with quotes between all fields:
-  //   <proto>"<seq>"<Rrecv>"<Lline>"#<acct>[<data>]
-  const siaMatch = cleanContent.match(
-    /^(SIA-DCS|ADM-CID|NULL)"(\d{0,4})"?(R[0-9A-Fa-f]{0,6})?"?(L[0-9A-Fa-f]{0,6})"?#([0-9A-Fa-f]{1,16})\[([^\]]*)\]?$/,
+  // Parse fields: <SEQ><RECV><LINE>#<ACCT>[<DATA>]
+  // Standard:  0001R0L0#1234[CL001]
+  // Legacy:    0001"R0"L0"#1234[CL001]  (quotes between fields)
+  let sequence = '';
+  let receiver = '';
+  let linePrefix = '';
+  let account = '';
+  let eventData = '';
+
+  const fieldsMatch = fields.match(
+    /^(\d{0,4})"?(R[0-9A-Fa-f]{0,6})?"?(L[0-9A-Fa-f]{0,6})?"?#([0-9A-Fa-f]{1,16})\[([^\]]*)\]?$/,
   );
-  if (siaMatch) {
-    [, protocol, sequence, receiver, linePrefix, account, eventData] = siaMatch;
-    // Ensure receiver/line have defaults
+  if (fieldsMatch) {
+    [, sequence, receiver, linePrefix, account, eventData] = fieldsMatch;
     receiver = receiver || 'R0';
     linePrefix = linePrefix || 'L0';
   } else {
-    // Try loose parse - extract what we can from non-standard formats
-    const looseProto = cleanContent.match(/^(SIA-DCS|ADM-CID|NULL)/);
-    protocol = looseProto ? looseProto[1] : 'UNKNOWN';
-
-    const acctMatch = cleanContent.match(/#([0-9A-Fa-f\w]+)/);
+    // Loose parse for non-standard formats
+    const acctMatch = fields.match(/#([0-9A-Fa-f\w]+)/);
     account = acctMatch ? acctMatch[1] : '';
 
-    const dataMatch = cleanContent.match(/\[([^\]]*)\]/);
+    const dataMatch = fields.match(/\[([^\]]*)\]/);
     eventData = dataMatch ? dataMatch[1] : '';
 
-    const seqMatch = cleanContent.match(/"(\d+)/);
+    const seqMatch = fields.match(/^"?(\d+)/);
     sequence = seqMatch ? seqMatch[1] : '';
 
-    const recvMatch = cleanContent.match(/(R[0-9A-Fa-f]+)/);
+    const recvMatch = fields.match(/(R[0-9A-Fa-f]+)/);
     receiver = recvMatch ? recvMatch[1] : 'R0';
 
-    const lpMatch = cleanContent.match(/(L[0-9A-Fa-f]+)/);
+    const lpMatch = fields.match(/(L[0-9A-Fa-f]+)/);
     linePrefix = lpMatch ? lpMatch[1] : 'L0';
   }
 
@@ -479,7 +478,6 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
     event = parseCidEvent(eventData);
   } else if (protocol === 'SIA-DCS' && eventData) {
     // SIA-DCS can contain CID-like data or native SIA event codes
-    // Try CID format first, then SIA event codes
     const cidFromSia = parseCidEvent(eventData);
     if (cidFromSia) {
       event = cidFromSia;
@@ -492,7 +490,7 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
   }
 
   return {
-    raw: content,
+    raw,
     sequence,
     receiver,
     linePrefix,

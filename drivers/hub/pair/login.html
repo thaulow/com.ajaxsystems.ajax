@@ -254,8 +254,39 @@
           btn.textContent = mode === 'sia' ? 'Set Up' : 'Connect';
           return;
         }
-        Homey.showView('list_devices');
+
+        if (mode === 'sia') {
+          // Server started — now poll until the hub sends a SIA message
+          btn.textContent = 'Waiting for hub message... Configure Ajax now';
+          pollSiaConnection(btn, errEl);
+        } else {
+          Homey.showView('list_devices');
+        }
       });
+    }
+
+    function pollSiaConnection(btn, errEl) {
+      var attempts = 0;
+      var maxAttempts = 60; // 60 × 2s = 120s
+      var interval = setInterval(function() {
+        attempts++;
+        Homey.emit('checkSiaConnection', {}, function(err, result) {
+          if (result && result.connected) {
+            clearInterval(interval);
+            Homey.showView('list_devices');
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            errEl.textContent =
+              'No SIA message received from hub within 120 seconds. '
+              + 'Please verify your hub\'s Monitoring Station settings point '
+              + 'to your Homey\'s IP address with the correct port and account. '
+              + 'Try tapping "Check connection" in the Ajax app or arm/disarm your system.';
+            errEl.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Set Up';
+          }
+        });
+      }, 2000);
     }
 
     // Allow Enter key to submit

@@ -96,6 +96,14 @@ module.exports = class AjaxApp extends Homey.App {
   // ============================================================
 
   async startSiaServer(config: SiaServerConfig): Promise<void> {
+    // Reuse the existing server if it's already running on the same port.
+    // Destroying and recreating the server drops the hub's TCP connection,
+    // and the hub may not reconnect in time for pairing to detect it.
+    if (this.siaServer?.isRunning() && this.siaServer.getPort() === config.port) {
+      this.log(`SIA server already running on port ${config.port}, reusing`);
+      return;
+    }
+
     // Properly stop the old server and wait for port release
     await this.destroySiaServer();
 

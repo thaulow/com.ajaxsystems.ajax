@@ -69,7 +69,10 @@ module.exports = class HubDriver extends Homey.Driver {
 
       const mode = data.auth_mode || 'user';
 
-      // SIA mode: start server and wait for hub to connect
+      // SIA mode: start server and return immediately.
+      // The frontend will poll checkSiaConnection to wait for the hub.
+      // (Homey's pairing framework has a 30s timeout on handler calls,
+      // so we cannot block here waiting for the hub to connect.)
       if (mode === 'sia') {
         const port = parseInt(data.sia_port) || 5000;
         const accountId = (data.sia_account || '').trim();
@@ -79,7 +82,6 @@ module.exports = class HubDriver extends Homey.Driver {
         if (!hubName) throw new Error('Hub name is required');
         if (port < 1024 || port > 65535) throw new Error('Port must be between 1024 and 65535');
 
-        // Start the SIA server and wait for a message from the hub
         const app = this.homey.app as any;
         if (!app?.startSiaServer) {
           throw new Error('App not ready');
@@ -95,65 +97,14 @@ module.exports = class HubDriver extends Homey.Driver {
           throw new Error(`Failed to start SIA server on port ${port}: ${(err as Error).message}`);
         }
 
-        // Wait up to 120 seconds for the hub to send a message
         const siaServer = app.getSiaServer();
         if (!siaServer) {
           throw new Error('SIA server failed to start');
         }
 
         this.log(`SIA server started on port ${port}, waiting for hub to connect...`);
-        this.log(`SIA server running: ${siaServer.isRunning()}, port: ${siaServer.getPort()}`);
 
-        const received = await new Promise<boolean>((resolve) => {
-          const timeout = this.homey.setTimeout(() => {
-            cleanup();
-            resolve(false);
-          }, 120_000);
-
-          const onEvent = () => {
-            this.log('SIA pairing: received event (ACK exchange confirmed)');
-            cleanup();
-            resolve(true);
-          };
-
-          const onHeartbeat = () => {
-            this.log('SIA pairing: received heartbeat (ACK exchange confirmed)');
-            cleanup();
-            resolve(true);
-          };
-
-          const onConnected = (addr: string) => {
-            // TCP connect alone is not enough - wait for a full SIA message
-            // exchange (event or heartbeat) to confirm the ACK is valid.
-            this.log('SIA pairing: TCP connection from', addr, '- waiting for SIA message exchange...');
-          };
-
-          const cleanup = () => {
-            this.homey.clearTimeout(timeout);
-            siaServer.removeListener('event', onEvent);
-            siaServer.removeListener('heartbeat', onHeartbeat);
-            siaServer.removeListener('connected', onConnected);
-          };
-
-          siaServer.on('event', onEvent);
-          siaServer.on('heartbeat', onHeartbeat);
-          siaServer.on('connected', onConnected);
-        });
-
-        if (!received) {
-          throw new Error(
-            'No SIA message received from hub within 120 seconds. '
-            + 'Please verify your hub\'s Monitoring Station settings: '
-            + `IP should be your Homey\'s address, port ${port}, account ${accountId}. `
-            + 'Try: 1) Set monitoring station ping to 1 minute in the Ajax app, '
-            + '2) Tap "Check connection" in the Ajax monitoring station settings, '
-            + '3) Or arm/disarm your system to trigger a message.'
-          );
-        }
-
-        this.log('SIA: hub connected successfully');
-
-        // Save SIA settings
+        // Save SIA settings so the app reinitializes correctly
         this.homey.settings.set('auth_mode', 'sia');
         this.homey.settings.set('sia_port', port);
         this.homey.settings.set('sia_account', accountId);
@@ -235,6 +186,21 @@ module.exports = class HubDriver extends Homey.Driver {
       }
 
       return true;
+    });
+
+    session.setHandler('checkSiaConnection', async () => {
+      const app = this.homey.app as any;
+      const siaServer = app?.getSiaServer?.();
+      if (!siaServer) return { connected: false };
+
+      // getTimeSinceLastHeartbeat returns -1 if no message ever received,
+      // otherwise the ms since the last heartbeat/event.
+      const timeSince = siaServer.getTimeSinceLastHeartbeat();
+      const connected = timeSince >= 0 && timeSince < 300_000; // within 5 minutes
+      if (connected) {
+        this.log('SIA pairing: hub connection confirmed (last activity', timeSince, 'ms ago)');
+      }
+      return { connected };
     });
 
     session.setHandler('list_devices', async () => {
