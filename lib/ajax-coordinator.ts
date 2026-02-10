@@ -209,7 +209,8 @@ export class AjaxCoordinator extends EventEmitter {
       if (err instanceof AjaxAuthError) {
         this.error('Authentication error during poll:', (err as Error).message);
         this.emit('authError', err);
-        // Don't continue polling on auth errors
+        // Retry with max backoff - session may recover after re-login
+        this.pollTimer = this.homey.setTimeout(() => this.poll(), BACKOFF_MAX_MS);
         return;
       }
 
@@ -313,6 +314,15 @@ export class AjaxCoordinator extends EventEmitter {
         groups: groupMap,
         rooms: roomMap,
       });
+    }
+
+    // Remove hubs that are no longer returned by the API
+    const currentHubIds = new Set(hubs.map(h => h.id));
+    for (const hubId of this.data.hubs.keys()) {
+      if (!currentHubIds.has(hubId)) {
+        this.log(`Hub ${hubId} no longer present, removing from data`);
+        this.data.hubs.delete(hubId);
+      }
     }
 
     this.data.lastUpdate = Date.now();

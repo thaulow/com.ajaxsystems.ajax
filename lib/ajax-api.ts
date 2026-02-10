@@ -265,6 +265,7 @@ export class AjaxApiClient {
         method,
         headers,
         timeout: REQUEST_TIMEOUT_MS,
+        rejectUnauthorized: this.credentials.verifySsl !== false,
       };
 
       const req = transport.request(options, (res) => {

@@ -24,6 +24,78 @@
  */
 
 // ============================================================
+// SIA Event Codes (SIA-DCS native 2-character codes)
+// Mapped to equivalent CID codes for unified handling
+// ============================================================
+
+export const SIA_TO_CID: Record<string, { code: string; qualifier: number; category: string; description: string }> = {
+  // Burglary
+  'BA': { code: '130', qualifier: 1, category: 'burglary', description: 'Burglary alarm' },
+  'BR': { code: '130', qualifier: 3, category: 'burglary', description: 'Burglary alarm restore' },
+  'BB': { code: '570', qualifier: 1, category: 'bypass', description: 'Zone bypass' },
+  'BU': { code: '570', qualifier: 3, category: 'bypass', description: 'Zone unbypass' },
+  'BT': { code: '370', qualifier: 1, category: 'trouble', description: 'Burglary trouble' },
+  'BJ': { code: '370', qualifier: 3, category: 'trouble', description: 'Burglary trouble restore' },
+
+  // Fire
+  'FA': { code: '110', qualifier: 1, category: 'fire', description: 'Fire alarm' },
+  'FR': { code: '110', qualifier: 3, category: 'fire', description: 'Fire alarm restore' },
+  'FT': { code: '373', qualifier: 1, category: 'trouble', description: 'Fire trouble' },
+  'FJ': { code: '373', qualifier: 3, category: 'trouble', description: 'Fire trouble restore' },
+
+  // Water
+  'WA': { code: '153', qualifier: 1, category: 'water', description: 'Water alarm' },
+  'WR': { code: '153', qualifier: 3, category: 'water', description: 'Water alarm restore' },
+  'WT': { code: '153', qualifier: 1, category: 'trouble', description: 'Water trouble' },
+
+  // Tamper
+  'TA': { code: '137', qualifier: 1, category: 'tamper', description: 'Tamper alarm' },
+  'TR': { code: '137', qualifier: 3, category: 'tamper', description: 'Tamper alarm restore' },
+  'YA': { code: '144', qualifier: 1, category: 'tamper', description: 'Expansion tamper' },
+  'YR': { code: '144', qualifier: 3, category: 'tamper', description: 'Expansion tamper restore' },
+  'YT': { code: '145', qualifier: 1, category: 'tamper', description: 'Module tamper' },
+
+  // Panic
+  'PA': { code: '120', qualifier: 1, category: 'panic', description: 'Panic alarm' },
+  'PR': { code: '120', qualifier: 3, category: 'panic', description: 'Panic alarm restore' },
+
+  // Medical
+  'MA': { code: '100', qualifier: 1, category: 'medical', description: 'Medical alarm' },
+  'MR': { code: '100', qualifier: 3, category: 'medical', description: 'Medical alarm restore' },
+
+  // Gas / CO
+  'GA': { code: '151', qualifier: 1, category: 'gas', description: 'Gas alarm' },
+  'GR': { code: '151', qualifier: 3, category: 'gas', description: 'Gas alarm restore' },
+  'CA': { code: '162', qualifier: 1, category: 'co', description: 'CO detected' },
+  'CF': { code: '162', qualifier: 3, category: 'co', description: 'CO restore' },
+
+  // Arming / Disarming
+  'CL': { code: '401', qualifier: 1, category: 'arming', description: 'Armed' },
+  'OP': { code: '401', qualifier: 3, category: 'arming', description: 'Disarmed' },
+  'NL': { code: '441', qualifier: 1, category: 'arming', description: 'Night mode armed' },
+  'NO': { code: '441', qualifier: 3, category: 'arming', description: 'Night mode disarmed' },
+  'CG': { code: '456', qualifier: 1, category: 'arming', description: 'Partial arm' },
+  'OG': { code: '456', qualifier: 3, category: 'arming', description: 'Partial disarm' },
+
+  // Trouble / System
+  'AT': { code: '301', qualifier: 1, category: 'trouble', description: 'AC power loss' },
+  'AR': { code: '301', qualifier: 3, category: 'trouble', description: 'AC power restore' },
+  'LB': { code: '302', qualifier: 1, category: 'trouble', description: 'Low battery' },
+  'LR': { code: '302', qualifier: 3, category: 'trouble', description: 'Low battery restore' },
+  'YC': { code: '354', qualifier: 1, category: 'communication', description: 'Communication failure' },
+  'YK': { code: '354', qualifier: 3, category: 'communication', description: 'Communication restore' },
+  'XT': { code: '380', qualifier: 1, category: 'trouble', description: 'Sensor trouble' },
+  'XR': { code: '380', qualifier: 3, category: 'trouble', description: 'Sensor trouble restore' },
+  'XE': { code: '381', qualifier: 1, category: 'trouble', description: 'Sensor missing' },
+  'XI': { code: '381', qualifier: 3, category: 'trouble', description: 'Sensor missing restore' },
+
+  // Test / Supervision
+  'RP': { code: '602', qualifier: 6, category: 'test', description: 'Automatic test' },
+  'RX': { code: '601', qualifier: 6, category: 'test', description: 'Manual test' },
+  'RS': { code: '305', qualifier: 6, category: 'test', description: 'System reset' },
+};
+
+// ============================================================
 // Contact ID Event Codes
 // ============================================================
 
@@ -349,11 +421,16 @@ export function parseSiaMessage(data: Buffer): SiaMessage | null {
   if (protocol === 'ADM-CID' && eventData) {
     event = parseCidEvent(eventData);
   } else if (protocol === 'SIA-DCS' && eventData) {
-    // SIA-DCS can also contain CID-like data: #ACCT|Nri01/CID
-    // or just CID data directly
+    // SIA-DCS can contain CID-like data or native SIA event codes
+    // Try CID format first, then SIA event codes
     const cidFromSia = parseCidEvent(eventData);
     if (cidFromSia) {
       event = cidFromSia;
+    } else {
+      const siaEvent = parseSiaEventData(eventData);
+      if (siaEvent) {
+        event = siaEvent;
+      }
     }
   }
 
@@ -402,6 +479,45 @@ function parseCidEvent(data: string): CidEvent | null {
 
   const [, q, code, gg, zzz] = cidMatch;
   return buildCidEvent(parseInt(q), code, parseInt(gg), parseInt(zzz));
+}
+
+/**
+ * Parse SIA-DCS native event data (2-character SIA event codes).
+ *
+ * SIA-DCS event data formats:
+ *   #ACCT|Nri01/CL001    (with account and routing)
+ *   Nri01/CL001          (with routing)
+ *   N/CL001              (minimal routing)
+ *   CL001                (bare code + zone)
+ *
+ * Where CL = 2-char SIA code, 001 = zone/user number
+ */
+function parseSiaEventData(data: string): CidEvent | null {
+  // Strip account prefix if present (e.g., #001234|)
+  let cleaned = data.replace(/^#?\w*\|/, '');
+
+  // Strip routing prefix (e.g., Nri01/, N/, Nri00/)
+  cleaned = cleaned.replace(/^N[\w]*\//, '');
+
+  // Match SIA event code: 2 uppercase alpha chars followed by optional digits
+  const siaMatch = cleaned.match(/^([A-Z]{2})(\d{0,4})/);
+  if (!siaMatch) return null;
+
+  const [, siaCode, zoneStr] = siaMatch;
+  const mapping = SIA_TO_CID[siaCode];
+  if (!mapping) return null;
+
+  const zone = zoneStr ? parseInt(zoneStr) : 0;
+
+  return {
+    qualifier: mapping.qualifier,
+    code: mapping.code,
+    partition: 0,
+    zone,
+    category: mapping.category,
+    description: mapping.description,
+    isRestore: mapping.qualifier === 3,
+  };
 }
 
 function buildCidEvent(qualifier: number, code: string, partition: number, zone: number): CidEvent {

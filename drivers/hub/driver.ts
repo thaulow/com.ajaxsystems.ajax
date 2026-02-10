@@ -53,8 +53,10 @@ module.exports = class HubDriver extends Homey.Driver {
       .registerRunListener(async (args) => {
         const app = this.homey.app as any;
         if (!app?.isReady()) throw new Error('App not ready');
+        const api = app.getApi();
+        if (!api) throw new Error('Mute fire detectors is not available in SIA mode.');
         const hubId = args.device.getData().hubId;
-        await app.getApi().muteFireDetectors(hubId);
+        await api.muteFireDetectors(hubId);
       });
   }
 
@@ -93,31 +95,35 @@ module.exports = class HubDriver extends Homey.Driver {
           throw new Error(`Failed to start SIA server on port ${port}: ${(err as Error).message}`);
         }
 
-        // Wait up to 60 seconds for the hub to send a message
+        // Wait up to 120 seconds for the hub to send a message
         const siaServer = app.getSiaServer();
         if (!siaServer) {
           throw new Error('SIA server failed to start');
         }
 
-        this.log('SIA server started, waiting for hub to connect...');
+        this.log(`SIA server started on port ${port}, waiting for hub to connect...`);
+        this.log(`SIA server running: ${siaServer.isRunning()}, port: ${siaServer.getPort()}`);
 
         const received = await new Promise<boolean>((resolve) => {
           const timeout = this.homey.setTimeout(() => {
             cleanup();
             resolve(false);
-          }, 60_000);
+          }, 120_000);
 
           const onEvent = () => {
+            this.log('SIA pairing: received event');
             cleanup();
             resolve(true);
           };
 
           const onHeartbeat = () => {
+            this.log('SIA pairing: received heartbeat');
             cleanup();
             resolve(true);
           };
 
-          const onConnected = () => {
+          const onConnected = (addr: string) => {
+            this.log('SIA pairing: received connection from', addr);
             cleanup();
             resolve(true);
           };
@@ -136,9 +142,10 @@ module.exports = class HubDriver extends Homey.Driver {
 
         if (!received) {
           throw new Error(
-            'No connection received from hub within 60 seconds. '
+            'No connection received from hub within 120 seconds. '
             + 'Please verify your hub\'s Monitoring Station settings: '
-            + `IP should be your Homey\'s address, port ${port}, account ${accountId}.`
+            + `IP should be your Homey\'s address, port ${port}, account ${accountId}. `
+            + 'You may need to toggle "Connect on demand" off and on, or restart the hub.'
           );
         }
 

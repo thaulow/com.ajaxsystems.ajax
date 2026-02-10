@@ -71,6 +71,7 @@ export class SiaServer extends EventEmitter {
 
   private config: SiaServerConfig;
   private server: net.Server | null = null;
+  private sockets: Set<net.Socket> = new Set();
   private log: (...args: any[]) => void;
   private error: (...args: any[]) => void;
   private running: boolean = false;
@@ -121,15 +122,28 @@ export class SiaServer extends EventEmitter {
   }
 
   /**
-   * Stop the SIA server.
+   * Stop the SIA server and release the port.
    */
-  stop(): void {
-    this.running = false;
-    if (this.server) {
-      this.server.close();
-      this.server = null;
-    }
-    this.log('SIA server stopped');
+  stop(): Promise<void> {
+    return new Promise((resolve) => {
+      this.running = false;
+
+      // Destroy all active sockets so the server can fully close
+      for (const socket of this.sockets) {
+        socket.destroy();
+      }
+      this.sockets.clear();
+
+      if (this.server) {
+        this.server.close(() => {
+          this.server = null;
+          this.log('SIA server stopped');
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
   }
 
   /**
@@ -163,6 +177,9 @@ export class SiaServer extends EventEmitter {
     this.log('SIA connection from:', address);
     this.emit('connected', address);
 
+    // Track socket for cleanup on server stop
+    this.sockets.add(socket);
+
     let buffer = Buffer.alloc(0);
 
     socket.on('data', (data: Buffer) => {
@@ -185,6 +202,7 @@ export class SiaServer extends EventEmitter {
     });
 
     socket.on('close', () => {
+      this.sockets.delete(socket);
       // Process any remaining data in buffer (hub may close without trailing CR)
       if (buffer.length > 0) {
         this.log('SIA processing remaining buffer on close:', buffer.toString('hex'));
@@ -223,6 +241,16 @@ export class SiaServer extends EventEmitter {
 
       this.log(`SIA parsed: proto=${message.protocol} seq=${message.sequence} acct=${message.account} recv=${message.receiver} line=${message.linePrefix} crc=${message.crcValid ? 'OK' : 'FAIL'}`);
 
+      // Always send ACK first - the hub needs acknowledgement regardless of
+      // whether we process the event. Without ACK, Ajax marks connection as failed.
+      const ack = buildSiaAck(message);
+      this.log('SIA sending ACK:', ack.toString('ascii').replace(/[\r\n]/g, '\\n'), '| hex:', ack.toString('hex'));
+      if (socket.writable) {
+        socket.write(ack);
+      } else {
+        this.log('SIA: socket not writable, cannot send ACK');
+      }
+
       // Check account match if configured (lenient: strip leading zeros for comparison)
       if (this.config.accountId && message.account) {
         const configAcct = this.config.accountId.replace(/^0+/, '') || '0';
@@ -232,11 +260,6 @@ export class SiaServer extends EventEmitter {
           return;
         }
       }
-
-      // Send ACK
-      const ack = buildSiaAck(message);
-      this.log('SIA sending ACK:', ack.toString('ascii').replace(/[\r\n]/g, '\\n'), '| hex:', ack.toString('hex'));
-      socket.write(ack);
 
       // Handle the message
       if (message.protocol === 'NULL') {

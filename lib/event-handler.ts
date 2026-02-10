@@ -126,7 +126,10 @@ export class AjaxEventHandler {
     const additionalData = event.event.additionalDataV2 || [];
 
     // Check for arming state change in event code or additional data
-    for (const [tag, state] of Object.entries(EVENT_TAG_TO_STATE)) {
+    // Sort by tag length descending so "DISARM" matches before "ARM",
+    // "NIGHT_MODE_OFF" before "NIGHT_MODE_ON", etc.
+    const sortedTags = Object.entries(EVENT_TAG_TO_STATE).sort((a, b) => b[0].length - a[0].length);
+    for (const [tag, state] of sortedTags) {
       if (eventCode.includes(tag) || event.event.sourceObjectName?.toUpperCase().includes(tag)) {
         coordinator.updateHubState(hubId, { state }, 'sqs');
 

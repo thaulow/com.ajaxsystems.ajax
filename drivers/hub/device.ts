@@ -15,6 +15,9 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   private onlineListenerBound: ((data: any) => void) | null = null;
   private siaEventBound: ((event: SiaAlarmEvent) => void) | null = null;
   private siaHeartbeatBound: ((account: string) => void) | null = null;
+  private siaConnectedBound: ((address: string) => void) | null = null;
+  private siaDisconnectedBound: ((address: string) => void) | null = null;
+  private siaServerReadyBound: ((server: any) => void) | null = null;
   private siaHeartbeatTimer: any = null;
   private static readonly SIA_HEARTBEAT_TIMEOUT_MS = 300_000; // 5 minutes
 
@@ -35,6 +38,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     if (connectionMode === 'sia') {
       this.cleanupSiaListeners();
+      // Remove the app-level siaServerReady listener
+      if (this.siaServerReadyBound) {
+        const app = this.getApp();
+        app?.removeListener?.('siaServerReady', this.siaServerReadyBound);
+        this.siaServerReadyBound = null;
+      }
     } else {
       const coordinator = this.getCoordinator();
       if (coordinator && this.hubListenerBound) {
@@ -89,12 +98,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     // Also listen for when the SIA server is (re)started
     if (app) {
-      const onSiaReady = (server: any) => {
+      this.siaServerReadyBound = (server: any) => {
         this.subscribeSiaEvents(server);
         this.safeSetCapability('ajax_connection_state', true);
         this.setAvailable().catch(this.error);
       };
-      app.on?.('siaServerReady', onSiaReady);
+      app.on?.('siaServerReady', this.siaServerReadyBound);
     }
   }
 
@@ -103,19 +112,41 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     const accountId = this.getStoreValue('siaAccountId');
 
+    // Normalize account ID for lenient comparison (strip leading zeros)
+    const normalizedAccountId = accountId ? (accountId.replace(/^0+/, '') || '0') : '';
+
     this.siaEventBound = (event: SiaAlarmEvent) => {
-      // Only handle events for our account
-      if (accountId && event.account !== accountId) return;
+      // Only handle events for our account (lenient: strip leading zeros)
+      if (normalizedAccountId) {
+        const eventAcct = (event.account || '').replace(/^0+/, '') || '0';
+        if (normalizedAccountId !== eventAcct) return;
+      }
       this.onSiaEvent(event);
     };
 
     this.siaHeartbeatBound = (account: string) => {
-      if (accountId && account !== accountId) return;
+      if (normalizedAccountId) {
+        const heartbeatAcct = (account || '').replace(/^0+/, '') || '0';
+        if (normalizedAccountId !== heartbeatAcct) return;
+      }
       this.onSiaHeartbeat();
+    };
+
+    this.siaConnectedBound = (address: string) => {
+      this.log('SIA hub connected from:', address);
+      this.safeSetCapability('ajax_connection_state', true);
+      this.setAvailable().catch(this.error);
+      this.resetSiaHeartbeatTimer();
+    };
+
+    this.siaDisconnectedBound = (address: string) => {
+      this.log('SIA hub disconnected:', address);
     };
 
     siaServer.on('event', this.siaEventBound);
     siaServer.on('heartbeat', this.siaHeartbeatBound);
+    siaServer.on('connected', this.siaConnectedBound);
+    siaServer.on('disconnected', this.siaDisconnectedBound);
 
     // Start heartbeat watchdog
     this.resetSiaHeartbeatTimer();
@@ -128,6 +159,8 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     }
     this.siaEventBound = null;
     this.siaHeartbeatBound = null;
+    this.siaConnectedBound = null;
+    this.siaDisconnectedBound = null;
   }
 
   private onSiaEvent(event: SiaAlarmEvent): void {

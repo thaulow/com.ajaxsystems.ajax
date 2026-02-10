@@ -17,6 +17,7 @@ module.exports = class AjaxApp extends Homey.App {
   private sseClient: AjaxSseClient | null = null;
   private siaServer: SiaServer | null = null;
   private eventHandler!: AjaxEventHandler;
+  private reinitTimer: any = null;
 
   async onInit(): Promise<void> {
     this.log('Ajax Systems app initializing...');
@@ -36,14 +37,20 @@ module.exports = class AjaxApp extends Homey.App {
       }
     }
 
-    // Listen for settings changes
+    // Listen for settings changes (debounced to handle multiple rapid changes during pairing)
     this.homey.settings.on('set', (key: string) => {
       if (['auth_mode', 'api_key', 'email', 'password', 'company_id',
            'company_token', 'proxy_url', 'sqs_enabled',
            'poll_armed', 'poll_disarmed',
            'sia_port', 'sia_account', 'sia_encryption_key'].includes(key)) {
-        this.log(`Setting "${key}" changed, reinitializing...`);
-        this.reinitialize().catch(err => this.error('Reinitialize failed:', err));
+        this.log(`Setting "${key}" changed, scheduling reinitialize...`);
+        if (this.reinitTimer) {
+          this.homey.clearTimeout(this.reinitTimer);
+        }
+        this.reinitTimer = this.homey.setTimeout(() => {
+          this.reinitTimer = null;
+          this.reinitialize().catch(err => this.error('Reinitialize failed:', err));
+        }, 2000);
       }
     });
 
@@ -52,8 +59,12 @@ module.exports = class AjaxApp extends Homey.App {
 
   async onUninit(): Promise<void> {
     this.log('Ajax Systems app shutting down...');
+    if (this.reinitTimer) {
+      this.homey.clearTimeout(this.reinitTimer);
+      this.reinitTimer = null;
+    }
     this.destroyClients();
-    this.destroySiaServer();
+    await this.destroySiaServer();
   }
 
   // ============================================================
@@ -85,7 +96,8 @@ module.exports = class AjaxApp extends Homey.App {
   // ============================================================
 
   async startSiaServer(config: SiaServerConfig): Promise<void> {
-    this.destroySiaServer();
+    // Properly stop the old server and wait for port release
+    await this.destroySiaServer();
 
     this.siaServer = new SiaServer(
       config,
@@ -121,9 +133,9 @@ module.exports = class AjaxApp extends Homey.App {
     }
   }
 
-  private destroySiaServer(): void {
+  private async destroySiaServer(): Promise<void> {
     if (this.siaServer) {
-      this.siaServer.stop();
+      await this.siaServer.stop();
       this.siaServer.removeAllListeners();
       this.siaServer = null;
     }
@@ -236,11 +248,14 @@ module.exports = class AjaxApp extends Homey.App {
       this.error.bind(this),
     );
 
-    // Save session on updates
+    // Save session on updates and keep SSE token in sync
     this.coordinator.on('dataUpdated', () => {
       const session = this.api.getSession();
       if (session) {
         this.homey.settings.set('session', session);
+        if (this.sseClient && session.sessionToken) {
+          this.sseClient.updateToken(session.sessionToken);
+        }
       }
     });
 
@@ -313,7 +328,7 @@ module.exports = class AjaxApp extends Homey.App {
       this.destroyClients();
       await this.initializeSia();
     } else {
-      this.destroySiaServer();
+      await this.destroySiaServer();
       const credentials = this.getCredentials();
       if (credentials) {
         await this.initializeClients(credentials);
