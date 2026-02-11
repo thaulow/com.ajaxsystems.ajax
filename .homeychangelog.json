@@ -61,5 +61,8 @@
   },
   "1.0.21": {
     "en": "Add meta table between SIA and API"
+  },
+  "1.0.22": {
+    "en": "Added capabilities"
   }
 }
