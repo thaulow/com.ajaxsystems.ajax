@@ -145,13 +145,6 @@ module.exports = class HubDriver extends Homey.Driver {
           if (!credentials.email) throw new Error('Email is required');
           if (!credentials.password) throw new Error('Password is required');
           break;
-        case 'company':
-          credentials.companyId = data.company_id;
-          credentials.companyToken = data.company_token;
-          if (!credentials.apiKey) throw new Error('API Key is required');
-          if (!credentials.companyId) throw new Error('Company ID is required');
-          if (!credentials.companyToken) throw new Error('Company Token is required');
-          break;
         case 'proxy':
           credentials.email = data.email;
           credentials.password = data.password;
@@ -168,9 +161,7 @@ module.exports = class HubDriver extends Homey.Driver {
         this.error.bind(this),
       );
 
-      if (mode !== 'company') {
-        await api.login();
-      }
+      await api.login();
 
       // Save all credentials to app settings so the main app can use them
       this.homey.settings.set('auth_mode', mode);
@@ -179,9 +170,6 @@ module.exports = class HubDriver extends Homey.Driver {
         this.homey.settings.set('email', data.email);
         this.homey.settings.set('password', data.password);
         this.homey.settings.set('user_role', data.user_role || 'USER');
-      } else if (mode === 'company') {
-        this.homey.settings.set('company_id', data.company_id);
-        this.homey.settings.set('company_token', data.company_token);
       } else if (mode === 'proxy') {
         this.homey.settings.set('email', data.email);
         this.homey.settings.set('password', data.password);

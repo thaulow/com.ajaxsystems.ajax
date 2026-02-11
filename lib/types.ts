@@ -4,7 +4,7 @@
 // Authentication
 // ============================================================
 
-export type AuthMode = 'user' | 'company' | 'proxy' | 'sia';
+export type AuthMode = 'user' | 'proxy' | 'sia';
 export type UserRole = 'USER' | 'PRO';
 
 export interface LoginRequest {
@@ -38,9 +38,6 @@ export interface AuthCredentials {
   email?: string;
   password?: string;
   userRole?: UserRole;
-  // Company mode
-  companyId?: string;
-  companyToken?: string;
   // Proxy mode
   proxyUrl?: string;
   verifySsl?: boolean;

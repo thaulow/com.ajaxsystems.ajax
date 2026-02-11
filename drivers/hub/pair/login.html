@@ -98,8 +98,7 @@
     <label>Connection Mode</label>
     <select id="auth_mode" onchange="toggleMode()">
       <option value="sia">SIA Protocol (Local Network)</option>
-      <option value="user">Enterprise API (User Login)</option>
-      <option value="company">Enterprise API (Company Token)</option>
+      <option value="user">Enterprise API (Direct Integration)</option>
       <option value="proxy">Proxy Server</option>
     </select>
   </div>
@@ -172,18 +171,6 @@
     </div>
   </div>
 
-  <!-- Company Mode Fields -->
-  <div id="company_fields" class="mode-fields">
-    <div class="form-group">
-      <label>Company ID</label>
-      <input type="text" id="company_id" placeholder="Your company identifier" />
-    </div>
-    <div class="form-group">
-      <label>Company Token</label>
-      <input type="password" id="company_token" placeholder="X-Company-Token" />
-    </div>
-  </div>
-
   <!-- Proxy Mode Fields -->
   <div id="proxy_fields" class="mode-fields">
     <div class="form-group">
@@ -209,9 +196,9 @@
       document.querySelectorAll('.mode-fields').forEach(function(el) {
         el.classList.remove('active');
       });
-      var fieldMap = { sia: 'sia_fields', user: 'user_fields', company: 'company_fields', proxy: 'proxy_fields' };
+      var fieldMap = { sia: 'sia_fields', user: 'user_fields', proxy: 'proxy_fields' };
       document.getElementById(fieldMap[mode]).classList.add('active');
-      document.getElementById('api_key_group').style.display = (mode === 'user' || mode === 'company') ? 'block' : 'none';
+      document.getElementById('api_key_group').style.display = mode === 'user' ? 'block' : 'none';
       document.getElementById('btn_login').textContent = mode === 'sia' ? 'Set Up' : 'Connect';
     }
 
@@ -237,9 +224,6 @@
         data.email = document.getElementById('email').value.trim();
         data.password = document.getElementById('password').value;
         data.user_role = document.getElementById('user_role').value;
-      } else if (mode === 'company') {
-        data.company_id = document.getElementById('company_id').value.trim();
-        data.company_token = document.getElementById('company_token').value;
       } else if (mode === 'proxy') {
         data.email = document.getElementById('proxy_email').value.trim();
         data.password = document.getElementById('proxy_password').value;

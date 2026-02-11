@@ -154,10 +154,6 @@ export class AjaxApiClient {
    * Ensure we have a valid token before making requests.
    */
   private async ensureValidToken(): Promise<void> {
-    if (this.credentials.mode === 'company') {
-      return; // Company mode uses persistent token
-    }
-
     if (!this.session) {
       await this.login();
       return;
@@ -181,9 +177,6 @@ export class AjaxApiClient {
   }
 
   private getBasePath(): string {
-    if (this.credentials.mode === 'company') {
-      return `/company/${this.credentials.companyId}`;
-    }
     return `/user/${this.session?.userId}`;
   }
 
@@ -194,11 +187,7 @@ export class AjaxApiClient {
       headers['X-Api-Key'] = this.credentials.apiKey;
     }
 
-    if (this.credentials.mode === 'company') {
-      if (this.credentials.companyToken) {
-        headers['X-Company-Token'] = this.credentials.companyToken;
-      }
-    } else if (this.session?.sessionToken) {
+    if (this.session?.sessionToken) {
       headers['X-Session-Token'] = this.session.sessionToken;
     }
 
@@ -334,7 +323,7 @@ export class AjaxApiClient {
     try {
       return await this.rawRequest(method, endpoint, body, true, noCacheBypass);
     } catch (err) {
-      if (err instanceof AjaxAuthError && err.statusCode === 401 && this.credentials.mode !== 'company') {
+      if (err instanceof AjaxAuthError && err.statusCode === 401) {
         // Try refreshing the token and retry once
         this.log('Got 401, attempting token refresh and retry');
         await this.refreshSession();

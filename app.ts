@@ -7,7 +7,7 @@ import { AjaxSqsClient } from './lib/sqs-client';
 import { AjaxSseClient } from './lib/sse-client';
 import { AjaxEventHandler } from './lib/event-handler';
 import { SiaServer, SiaServerConfig } from './lib/sia-server';
-import { AuthCredentials, SessionState, SqsConfig, PollingConfig, SiaConfig } from './lib/types';
+import { AuthCredentials, SessionState, SqsConfig, PollingConfig } from './lib/types';
 
 module.exports = class AjaxApp extends Homey.App {
 
@@ -39,8 +39,8 @@ module.exports = class AjaxApp extends Homey.App {
 
     // Listen for settings changes (debounced to handle multiple rapid changes during pairing)
     this.homey.settings.on('set', (key: string) => {
-      if (['auth_mode', 'api_key', 'email', 'password', 'company_id',
-           'company_token', 'proxy_url', 'sqs_enabled',
+      if (['auth_mode', 'api_key', 'email', 'password',
+           'proxy_url', 'sqs_enabled',
            'poll_armed', 'poll_disarmed',
            'sia_port', 'sia_account', 'sia_encryption_key'].includes(key)) {
         this.log(`Setting "${key}" changed, scheduling reinitialize...`);
@@ -158,24 +158,19 @@ module.exports = class AjaxApp extends Homey.App {
     const apiKey = this.homey.settings.get('api_key') as string;
 
     if (!mode || mode === 'sia') return null;
-    if (!apiKey) return null;
 
     const credentials: AuthCredentials = {
       mode: mode as AuthCredentials['mode'],
-      apiKey,
+      apiKey: apiKey || '',
     };
 
     switch (mode) {
       case 'user':
+        if (!apiKey) return null;
         credentials.email = this.homey.settings.get('email') as string;
         credentials.password = this.homey.settings.get('password') as string;
         credentials.userRole = (this.homey.settings.get('user_role') as string || 'USER') as AuthCredentials['userRole'];
         if (!credentials.email || !credentials.password) return null;
-        break;
-      case 'company':
-        credentials.companyId = this.homey.settings.get('company_id') as string;
-        credentials.companyToken = this.homey.settings.get('company_token') as string;
-        if (!credentials.companyId || !credentials.companyToken) return null;
         break;
       case 'proxy':
         credentials.email = this.homey.settings.get('email') as string;
@@ -236,10 +231,8 @@ module.exports = class AjaxApp extends Homey.App {
 
     // Login or verify session
     try {
-      if (credentials.mode !== 'company') {
-        const session = await this.api.login();
-        this.homey.settings.set('session', session);
-      }
+      const session = await this.api.login();
+      this.homey.settings.set('session', session);
     } catch (err) {
       this.error('Login failed:', (err as Error).message);
     }
