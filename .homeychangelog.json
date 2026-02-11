@@ -43,5 +43,8 @@
   },
   "1.0.15": {
     "en": "Added 3 new devices"
+  },
+  "1.0.16": {
+    "en": "Added new device images"
   }
 }
