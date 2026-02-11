@@ -70,5 +70,8 @@
   },
   "1.0.24": {
     "en": "reduce proxy polling"
+  },
+  "1.0.25": {
+    "en": "SSE bugfix"
   }
 }
