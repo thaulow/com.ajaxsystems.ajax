@@ -67,5 +67,8 @@
   },
   "1.0.23": {
     "en": "Fix stale sensor and backoff"
+  },
+  "1.0.24": {
+    "en": "reduce proxy polling"
   }
 }
