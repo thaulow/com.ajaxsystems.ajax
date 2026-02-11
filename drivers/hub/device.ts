@@ -88,6 +88,14 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       setable: false,
     }).catch(this.error);
 
+    // Reject any user-initiated changes (SIA is receive-only)
+    this.registerCapabilityListener('homealarm_state', async () => {
+      throw new Error('SIA is receive-only. Use the Ajax app or keypad to arm/disarm.');
+    });
+    this.registerCapabilityListener('ajax_night_mode', async () => {
+      throw new Error('SIA is receive-only. Use the Ajax app or keypad to control night mode.');
+    });
+
     // Set initial state
     await this.safeSetCapability('homealarm_state', 'disarmed');
     await this.safeSetCapability('ajax_night_mode', false);
@@ -203,9 +211,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     this.resetSiaHeartbeatTimer();
 
+    // Resolve zone number to device name if coordinator is available
+    const { deviceName, roomName } = this.resolveZone(event.zone);
+
     // Build event description for the last event capability
-    const zoneInfo = event.zone > 0 ? ` (zone ${event.zone})` : '';
-    const eventText = `${event.description}${zoneInfo}`;
+    const sourceInfo = deviceName || (event.zone > 0 ? `Zone ${event.zone}` : '');
+    const eventText = sourceInfo ? `${event.description} (${sourceInfo})` : event.description;
     this.safeSetCapability('ajax_last_event', eventText);
 
     switch (event.type) {
@@ -393,8 +404,8 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     this.triggerCard('alarm_event', {
       hub_name: this.getName(),
       event_type: event.type,
-      device_name: `Zone ${event.zone}`,
-      room_name: '',
+      device_name: deviceName || (event.zone > 0 ? `Zone ${event.zone}` : ''),
+      room_name: roomName,
       description: event.description,
     });
 
@@ -431,6 +442,36 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     if (!fire && !water && !tamper && !co) {
       this.safeSetCapability('alarm_generic', false);
     }
+  }
+
+  /**
+   * Resolve a SIA zone number to a device name and room name
+   * by looking up cmsDeviceIndex in the coordinator's device data.
+   */
+  private resolveZone(zone: number): { deviceName: string; roomName: string } {
+    if (zone <= 0) return { deviceName: '', roomName: '' };
+
+    try {
+      const app = this.getApp();
+      const coordinator = app?.getCoordinator?.();
+      if (!coordinator) return { deviceName: '', roomName: '' };
+
+      for (const hubId of coordinator.getAllHubIds()) {
+        for (const device of coordinator.getAllDevicesForHub(hubId)) {
+          const cmsIndex = device.model?.cmsDeviceIndex;
+          if (cmsIndex !== undefined && Number(cmsIndex) === zone) {
+            return {
+              deviceName: device.deviceName || '',
+              roomName: device.roomName || '',
+            };
+          }
+        }
+      }
+    } catch {
+      // Coordinator not available — fall back to zone number
+    }
+
+    return { deviceName: '', roomName: '' };
   }
 
   /**
