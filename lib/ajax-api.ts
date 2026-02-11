@@ -411,9 +411,6 @@ export class AjaxApiClient {
   }
 
   private normalizeDevice(raw: Record<string, any>): AjaxDevice {
-    // Temporary: dump full device response for debugging proxy field mapping
-    this.log('DEVICE_RAW:', JSON.stringify(raw).substring(0, 2000));
-
     // Build a unified model: start with raw.model, then overlay any
     // device-state fields from the top level. This handles both formats:
     // - Direct API: state in raw.model

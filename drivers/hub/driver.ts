@@ -112,11 +112,16 @@ module.exports = class HubDriver extends Homey.Driver {
 
         this.log(`SIA server started on port ${port}, waiting for hub to connect...`);
 
-        // Save SIA settings so the app reinitializes correctly
-        this.homey.settings.set('auth_mode', 'sia');
+        // Save SIA settings. Use sia_enabled flag so SIA can run alongside API modes.
+        // Only set auth_mode to 'sia' if no API mode is configured (backwards compat).
+        this.homey.settings.set('sia_enabled', true);
         this.homey.settings.set('sia_port', port);
         this.homey.settings.set('sia_account', accountId);
         this.homey.settings.set('sia_encryption_key', data.sia_encryption_key || '');
+        const currentMode = this.homey.settings.get('auth_mode') as string;
+        if (!currentMode || currentMode === 'sia') {
+          this.homey.settings.set('auth_mode', 'sia');
+        }
 
         // Store for list_devices handler
         this.siaLoginData = {

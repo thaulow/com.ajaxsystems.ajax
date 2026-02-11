@@ -22,19 +22,19 @@ module.exports = class AjaxApp extends Homey.App {
   async onInit(): Promise<void> {
     this.log('Ajax Systems app initializing...');
 
-    const mode = this.homey.settings.get('auth_mode') as string;
+    // Start API clients if configured (user or proxy mode)
+    const credentials = this.getCredentials();
+    if (credentials) {
+      await this.initializeClients(credentials);
+    }
 
-    if (mode === 'sia') {
-      // SIA mode: start the SIA TCP server instead of API clients
+    // Start SIA server if enabled (can run alongside API)
+    if (this.isSiaEnabled()) {
       await this.initializeSia();
-    } else {
-      // API-based modes
-      const credentials = this.getCredentials();
-      if (credentials) {
-        await this.initializeClients(credentials);
-      } else {
-        this.log('No credentials configured yet. Waiting for settings.');
-      }
+    }
+
+    if (!credentials && !this.isSiaEnabled()) {
+      this.log('No credentials configured yet. Waiting for settings.');
     }
 
     // Listen for settings changes (debounced to handle multiple rapid changes during pairing)
@@ -42,7 +42,7 @@ module.exports = class AjaxApp extends Homey.App {
       if (['auth_mode', 'api_key', 'email', 'password',
            'proxy_url', 'sqs_enabled',
            'poll_armed', 'poll_disarmed',
-           'sia_port', 'sia_account', 'sia_encryption_key'].includes(key)) {
+           'sia_enabled', 'sia_port', 'sia_account', 'sia_encryption_key'].includes(key)) {
         this.log(`Setting "${key}" changed, scheduling reinitialize...`);
         if (this.reinitTimer) {
           this.homey.clearTimeout(this.reinitTimer);
@@ -84,16 +84,24 @@ module.exports = class AjaxApp extends Homey.App {
   }
 
   isReady(): boolean {
-    const mode = this.homey.settings.get('auth_mode') as string;
-    if (mode === 'sia') {
-      return !!this.siaServer?.isRunning();
-    }
-    return !!this.api && !!this.coordinator;
+    const apiReady = !!this.api && !!this.coordinator;
+    const siaReady = !!this.siaServer?.isRunning();
+    return apiReady || siaReady;
   }
 
   // ============================================================
-  // SIA Mode
+  // SIA
   // ============================================================
+
+  /**
+   * Check if SIA is enabled. SIA can run alongside API modes.
+   * Supports both the new `sia_enabled` flag and legacy `auth_mode: 'sia'`.
+   */
+  private isSiaEnabled(): boolean {
+    const siaEnabled = this.homey.settings.get('sia_enabled');
+    const mode = this.homey.settings.get('auth_mode') as string;
+    return siaEnabled === true || mode === 'sia';
+  }
 
   async startSiaServer(config: SiaServerConfig): Promise<void> {
     // Reuse the existing server if it's already running on the same port.
@@ -323,20 +331,19 @@ module.exports = class AjaxApp extends Homey.App {
   }
 
   private async reinitialize(): Promise<void> {
-    const mode = this.homey.settings.get('auth_mode') as string;
-
-    if (mode === 'sia') {
+    // Reinitialize API clients
+    const credentials = this.getCredentials();
+    if (credentials) {
+      await this.initializeClients(credentials);
+    } else {
       this.destroyClients();
+    }
+
+    // Reinitialize SIA server
+    if (this.isSiaEnabled()) {
       await this.initializeSia();
     } else {
       await this.destroySiaServer();
-      const credentials = this.getCredentials();
-      if (credentials) {
-        await this.initializeClients(credentials);
-      } else {
-        this.destroyClients();
-        this.log('Credentials incomplete, clients destroyed');
-      }
     }
   }
 
