@@ -58,5 +58,8 @@
   },
   "1.0.20": {
     "en": "Added mapping between SIA and API"
+  },
+  "1.0.21": {
+    "en": "Add meta table between SIA and API"
   }
 }
