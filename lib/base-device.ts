@@ -47,13 +47,14 @@ export class AjaxBaseDevice extends Homey.Device {
   }
 
   /**
-   * Wait for the app to be ready (API and coordinator initialized).
+   * Wait for the coordinator to be ready. Sensor devices need the coordinator
+   * (API mode) to function. In SIA-only mode, sensor devices remain unavailable.
    */
   protected async waitForApp(maxWaitMs: number = 30_000): Promise<boolean> {
     const start = Date.now();
-    while (!this.getApp().isReady()) {
+    while (!this.getApp().getCoordinator()) {
       if (Date.now() - start > maxWaitMs) {
-        this.error('Timed out waiting for app to be ready');
+        this.error('Timed out waiting for coordinator');
         return false;
       }
       await new Promise(resolve => this.homey.setTimeout(resolve, 1000));
