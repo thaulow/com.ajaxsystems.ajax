@@ -46,5 +46,8 @@
   },
   "1.0.16": {
     "en": "Added new device images"
+  },
+  "1.0.17": {
+    "en": "Fix proxy mode"
   }
 }
