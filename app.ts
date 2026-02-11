@@ -282,8 +282,18 @@ module.exports = class AjaxApp extends Homey.App {
         }
       });
 
-      this.coordinator.on('authError', () => {
-        this.error('Authentication error - credentials may need updating');
+      this.coordinator.on('authError', async () => {
+        this.error('Authentication error - attempting re-login');
+        try {
+          const session = await this.api.login();
+          this.homey.settings.set('session', session);
+          if (this.sseClient && session.sessionToken) {
+            this.sseClient.updateToken(session.sessionToken);
+          }
+          this.log('Re-login successful after auth error');
+        } catch (err) {
+          this.error('Re-login after auth error failed:', (err as Error).message);
+        }
       });
     }
 

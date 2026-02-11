@@ -127,9 +127,10 @@ export class AjaxSqsClient extends EventEmitter {
         this.error(`SQS events poll error (${this.consecutiveErrors}):`, (err as Error).message);
 
         if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
-          this.error('Too many SQS errors, stopping');
-          this.running = false;
-          return;
+          this.error('Too many SQS errors, backing off for 60s before retrying');
+          await this.sleep(60_000);
+          this.consecutiveErrors = 0;
+          continue;
         }
 
         // Exponential backoff

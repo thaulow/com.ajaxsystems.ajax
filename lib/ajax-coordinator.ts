@@ -26,6 +26,7 @@ const BACKOFF_BASE_MS = 2000;
 const BACKOFF_MAX_MS = 60_000;
 const STATE_PROTECTION_SSE_MS = 5_000;
 const STATE_PROTECTION_SQS_MS = 15_000;
+const STALE_DATA_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 export class AjaxCoordinator extends EventEmitter {
 
@@ -221,8 +222,14 @@ export class AjaxCoordinator extends EventEmitter {
       if (err instanceof AjaxAuthError) {
         this.error('Authentication error during poll:', (err as Error).message);
         this.emit('authError', err);
-        // Retry with max backoff - session may recover after re-login
-        this.pollTimer = this.homey.setTimeout(() => this.poll(), BACKOFF_MAX_MS);
+        // Try re-login via the API client, then resume quickly
+        try {
+          await this.api.login();
+          this.log('Re-login successful in coordinator, resuming poll in 2s');
+          this.pollTimer = this.homey.setTimeout(() => this.poll(), 2000);
+        } catch {
+          this.pollTimer = this.homey.setTimeout(() => this.poll(), BACKOFF_MAX_MS);
+        }
         return;
       }
 
@@ -230,6 +237,21 @@ export class AjaxCoordinator extends EventEmitter {
 
       if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
         this.emit('unavailable', 'Too many consecutive errors');
+      }
+
+      // If data is stale (no successful poll in 5+ minutes), try re-login to recover
+      const staleness = Date.now() - (this.data.lastUpdate || 0);
+      if (staleness > STALE_DATA_THRESHOLD_MS && this.consecutiveErrors >= 3) {
+        this.log(`Data is stale (${Math.round(staleness / 1000)}s), attempting re-login to recover`);
+        try {
+          await this.api.login();
+          this.log('Recovery re-login successful, resuming poll in 2s');
+          this.consecutiveErrors = 0;
+          this.pollTimer = this.homey.setTimeout(() => this.poll(), 2000);
+          return;
+        } catch {
+          this.error('Recovery re-login failed');
+        }
       }
 
       // Exponential backoff
