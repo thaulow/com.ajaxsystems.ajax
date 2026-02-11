@@ -55,5 +55,8 @@
   },
   "1.0.19": {
     "en": "bugfix"
+  },
+  "1.0.20": {
+    "en": "Added mapping between SIA and API"
   }
 }
