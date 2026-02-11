@@ -60,6 +60,29 @@ module.exports = class HubDriver extends Homey.Driver {
         const hubId = args.device.getData().hubId;
         await api.muteFireDetectors(hubId);
       });
+
+    this.homey.flow.getActionCard('send_panic_alert')
+      .registerRunListener(async (args) => {
+        this.requireApiMode(args.device);
+        const app = this.homey.app as any;
+        if (!app?.isReady()) throw new Error('App not ready');
+        const api = app.getApi();
+        const hubId = args.device.getData().hubId;
+        await api.sendPanic(hubId);
+      });
+
+    // Register signal quality condition cards
+    this.homey.flow.getConditionCard('gsm_signal_weak')
+      .registerRunListener(async (args) => {
+        const signal = args.device.getCapabilityValue('ajax_gsm_signal');
+        return signal !== null && signal <= 25;
+      });
+
+    this.homey.flow.getConditionCard('wifi_signal_weak')
+      .registerRunListener(async (args) => {
+        const signal = args.device.getCapabilityValue('ajax_wifi_signal');
+        return signal !== null && signal <= 25;
+      });
   }
 
   private requireApiMode(device: any): void {
@@ -266,12 +289,21 @@ module.exports = class HubDriver extends Homey.Driver {
         capabilities: [
           'homealarm_state',
           'ajax_night_mode',
+          'alarm_generic',
+          'alarm_fire',
+          'alarm_water',
+          'alarm_co',
           'alarm_tamper',
+          'alarm_battery',
+          'ajax_ac_power',
+          'ajax_device_lost',
+          'ajax_rf_interference',
           'measure_battery',
           'ajax_gsm_signal',
           'ajax_wifi_signal',
           'ajax_connection_state',
           'ajax_firmware_version',
+          'ajax_last_event',
         ],
       }));
     });

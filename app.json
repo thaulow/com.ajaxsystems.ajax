@@ -1065,6 +1065,22 @@
     ],
     "conditions": [
       {
+        "id": "gsm_signal_weak",
+        "title": {
+          "en": "GSM signal !{{is|is not}} weak"
+        },
+        "hint": {
+          "en": "Check if the hub's GSM signal is weak or has no signal"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
         "id": "hub_is_armed",
         "title": {
           "en": "Hub !{{is|is not}} armed"
@@ -1087,6 +1103,22 @@
         },
         "hint": {
           "en": "Check if night mode is enabled on a hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "wifi_signal_weak",
+        "title": {
+          "en": "Wi-Fi signal !{{is|is not}} weak"
+        },
+        "hint": {
+          "en": "Check if the hub's Wi-Fi signal is weak or has no signal"
         },
         "args": [
           {
@@ -1169,6 +1201,22 @@
         },
         "hint": {
           "en": "Enable night mode on an Ajax hub"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=hub"
+          }
+        ]
+      },
+      {
+        "id": "send_panic_alert",
+        "title": {
+          "en": "Send panic alert"
+        },
+        "hint": {
+          "en": "Send a panic alert to the Ajax hub's monitoring station"
         },
         "args": [
           {

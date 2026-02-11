@@ -1,0 +1,16 @@
+{
+  "id": "send_panic_alert",
+  "title": {
+    "en": "Send panic alert"
+  },
+  "hint": {
+    "en": "Send a panic alert to the Ajax hub's monitoring station"
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=hub"
+    }
+  ]
+}

@@ -525,6 +525,19 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       }
     }
 
+    // Set initial values for alarm capabilities (prevents "-" in UI)
+    await this.safeSetCapability('alarm_generic', false);
+    await this.safeSetCapability('alarm_fire', false);
+    await this.safeSetCapability('alarm_water', false);
+    await this.safeSetCapability('alarm_co', false);
+    await this.safeSetCapability('alarm_battery', false);
+    await this.safeSetCapability('ajax_ac_power', true);
+    await this.safeSetCapability('ajax_device_lost', false);
+    await this.safeSetCapability('ajax_rf_interference', false);
+    if (!this.getCapabilityValue('ajax_last_event')) {
+      await this.safeSetCapability('ajax_last_event', 'Waiting for events...');
+    }
+
     // Ensure capabilities are interactive (in case device was previously SIA)
     await this.setCapabilityOptions('ajax_night_mode', {
       uiComponent: 'toggle',
@@ -771,6 +784,14 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     await this.safeSetCapability('ajax_wifi_signal', signalLevelToPercent(hub.wifi?.signalLevel));
     await this.safeSetCapability('ajax_connection_state', hub.online);
     await this.safeSetCapability('ajax_firmware_version', hub.firmware?.version || 'Unknown');
+
+    // Update power/battery from hub data
+    await this.safeSetCapability('ajax_ac_power', hub.externallyPowered);
+    if (hub.battery?.state === 'DISCHARGED') {
+      await this.safeSetCapability('alarm_battery', true);
+    } else if (hub.battery?.state === 'CHARGED') {
+      await this.safeSetCapability('alarm_battery', false);
+    }
 
     if (hub.online) {
       this.setAvailable().catch(this.error);
