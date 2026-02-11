@@ -95,6 +95,8 @@ export class AjaxSseClient extends EventEmitter {
       headers: {
         'Accept': 'text/event-stream',
         'Cache-Control': 'no-cache',
+        'User-Agent': 'Ajax/3.26.0 (Android 14; SM-S928B)',
+        'X-Client-Version': '0.12.0',
         'X-Session-Token': this.sessionToken,
       },
     };

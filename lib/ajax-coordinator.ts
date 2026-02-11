@@ -235,16 +235,23 @@ export class AjaxCoordinator extends EventEmitter {
   private async fetchAllData(): Promise<void> {
     const hubs = await this.api.getHubs();
 
-    for (const hub of hubs) {
+    for (let hub of hubs) {
       const hubId = hub.id;
       const existingHubData = this.data.hubs.get(hubId);
 
-      // Fetch devices, groups, and rooms in parallel
-      const [devices, rooms, groups] = await Promise.all([
+      // Fetch devices, groups, rooms in parallel.
+      // In proxy mode, also fetch hub details (the list endpoint only has basic fields).
+      const [hubDetail, devices, rooms, groups] = await Promise.all([
+        this.api.isProxyMode() ? this.api.getHub(hubId).catch(() => null) : Promise.resolve(null),
         this.api.getDevices(hubId),
         this.api.getRooms(hubId),
         hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve([] as AjaxGroup[]),
       ]);
+
+      // Merge detailed hub data over the list data (proxy mode)
+      if (hubDetail) {
+        hub = { ...hub, ...hubDetail, id: hubId, name: hub.name || hubDetail.name };
+      }
 
       // Build maps
       const deviceMap = new Map<string, AjaxDevice>();

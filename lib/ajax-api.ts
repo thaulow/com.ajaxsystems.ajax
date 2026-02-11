@@ -5,7 +5,6 @@ import http from 'http';
 import {
   AuthCredentials,
   SessionState,
-  LoginResponse,
   RefreshResponse,
   AjaxHub,
   AjaxDevice,
@@ -22,6 +21,7 @@ import {
 import { hashPassword } from './util';
 
 const API_BASE_URL = 'https://api.ajax.systems/api';
+const USER_AGENT = 'Ajax/3.26.0 (Android 14; SM-S928B)';
 const SESSION_TOKEN_TTL_MS = 15 * 60 * 1000;    // 15 minutes
 const SESSION_REFRESH_MARGIN_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -66,6 +66,13 @@ export class AjaxApiClient {
   }
 
   /**
+   * Check if running in proxy mode.
+   */
+  isProxyMode(): boolean {
+    return this.credentials.mode === 'proxy';
+  }
+
+  /**
    * Get the SSE URL (proxy mode only).
    */
   getSseUrl(): string | undefined {
@@ -93,17 +100,37 @@ export class AjaxApiClient {
     };
 
     const response = await this.rawRequest('POST', '/login', body, false);
-    const data = response as LoginResponse;
+    const data = response as Record<string, any>;
+
+    // Proxy returns user_id (snake_case) and may omit sessionToken/refreshToken
+    const userId = data.userId || data.user_id;
+    const sessionToken = data.sessionToken || userId;
+    const refreshToken = data.refreshToken || '';
+
+    if (!userId) {
+      throw new AjaxAuthError('No userId in login response');
+    }
+
+    // Proxy may provide an API key for hybrid mode
+    if (mode === 'proxy' && data.apiKey) {
+      this.credentials.apiKey = data.apiKey;
+    }
+
+    // Build SSE URL from proxy URL if not provided
+    let sseUrl = data.sseUrl;
+    if (!sseUrl && mode === 'proxy' && this.credentials.proxyUrl) {
+      sseUrl = `${this.credentials.proxyUrl.replace(/\/$/, '')}/events?userId=${userId}`;
+    }
 
     this.session = {
-      sessionToken: data.sessionToken,
-      refreshToken: data.refreshToken,
-      userId: data.userId,
+      sessionToken,
+      refreshToken,
+      userId,
       tokenCreatedAt: Date.now(),
-      sseUrl: data.sseUrl,
+      sseUrl,
     };
 
-    this.log('Logged in successfully, userId:', data.userId);
+    this.log('Logged in successfully, userId:', userId);
     return this.session;
   }
 
@@ -127,6 +154,13 @@ export class AjaxApiClient {
   private async doRefresh(): Promise<void> {
     if (!this.session) {
       throw new AjaxAuthError('No session to refresh');
+    }
+
+    // Proxy mode has no refresh token — re-login instead
+    if (this.credentials.mode === 'proxy' && !this.session.refreshToken) {
+      this.log('Proxy mode: re-login instead of refresh');
+      await this.login();
+      return;
     }
 
     const body = {
@@ -227,7 +261,12 @@ export class AjaxApiClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': USER_AGENT,
     };
+
+    if (this.credentials.mode === 'proxy') {
+      headers['X-Client-Version'] = '0.12.0';
+    }
 
     if (authenticated) {
       Object.assign(headers, this.getAuthHeaders());
@@ -334,6 +373,95 @@ export class AjaxApiClient {
   }
 
   // ============================================================
+  // Response Normalization (proxy uses different field names)
+  // ============================================================
+
+  private normalizeHub(raw: Record<string, any>): AjaxHub {
+    // Build GSM object from flat fields if not already structured
+    const gsm = raw.gsm || (raw.gsmSignalLevel || raw.gsm_signal_level ? {
+      signalLevel: raw.gsmSignalLevel || raw.gsm_signal_level,
+    } : undefined);
+
+    // Build WiFi object from flat fields if not already structured
+    const wifi = raw.wifi || (raw.wifiSignalLevel || raw.wifi_signal_level ? {
+      signalLevel: raw.wifiSignalLevel || raw.wifi_signal_level,
+    } : undefined);
+
+    return {
+      ...raw,
+      id: raw.id || raw.hubId,
+      name: raw.name || raw.hubName || raw.deviceName || `Hub ${(raw.id || raw.hubId || '').substring(0, 6)}`,
+      hubSubtype: raw.hubSubtype || raw.type || 'HUB',
+      state: raw.state || 'DISARMED',
+      tampered: raw.tampered ?? false,
+      online: raw.online ?? true,
+      externallyPowered: raw.externallyPowered ?? true,
+      groupsEnabled: raw.groupsEnabled ?? false,
+      firmware: raw.firmware || {
+        version: raw.firmwareVersion || raw.firmware_version || 'Unknown',
+        newVersionAvailable: raw.newVersionAvailable ?? false,
+      },
+      battery: raw.battery || {
+        chargeLevelPercentage: raw.batteryChargeLevelPercentage ?? raw.batteryPercents ?? 100,
+        state: raw.batteryState || 'CHARGED',
+      },
+      gsm,
+      wifi,
+    } as AjaxHub;
+  }
+
+  private normalizeDevice(raw: Record<string, any>): AjaxDevice {
+    // Temporary: dump full device response for debugging proxy field mapping
+    this.log('DEVICE_RAW:', JSON.stringify(raw).substring(0, 2000));
+
+    // Build a unified model: start with raw.model, then overlay any
+    // device-state fields from the top level. This handles both formats:
+    // - Direct API: state in raw.model
+    // - Proxy: state at top level (no model sub-object)
+    const rawModel = raw.model || {};
+    const model = { ...rawModel };
+
+    // Copy device-state fields from top level into model if not already present.
+    // These are fields read by util functions (isContactOpen, isSmokeDetected, etc.)
+    const stateFields = [
+      'reedClosed', 'extraContactClosed', 'externalContactState',
+      'smokeAlarmDetected', 'temperatureAlarmDetected', 'coAlarmDetected',
+      'highTemperatureDiffDetected', 'leakDetected', 'glassBreak',
+      'switchState', 'socketState', 'channelStatuses',
+      'motionDetected', 'tamperState', 'valveState',
+      'state', 'sensitivity', 'alertsBySirens',
+    ];
+    for (const key of stateFields) {
+      if (model[key] === undefined && raw[key] !== undefined) {
+        model[key] = raw[key];
+      }
+    }
+
+    return {
+      ...raw,
+      id: raw.id || raw.deviceId,
+      deviceName: raw.deviceName || raw.name || 'Unknown Device',
+      deviceType: raw.deviceType || raw.type || 'UNKNOWN',
+      online: raw.online ?? rawModel.online ?? true,
+      tampered: raw.tampered ?? rawModel.tampered ?? false,
+      batteryChargeLevelPercentage:
+        raw.batteryChargeLevelPercentage ?? rawModel.batteryChargeLevelPercentage
+        ?? raw.batteryPercents ?? rawModel.batteryPercents
+        ?? raw.battery_level ?? rawModel.battery_level,
+      signalLevel: raw.signalLevel || rawModel.signalLevel || raw.signal_strength,
+      temperature: raw.temperature ?? rawModel.temperature ?? rawModel.actualTemperature,
+      roomId: raw.roomId || raw.room_id,
+      groupId: raw.groupId || raw.group_id,
+      firmware: raw.firmware || (
+        (raw.firmwareVersion || rawModel.firmwareVersion)
+          ? { version: raw.firmwareVersion || rawModel.firmwareVersion }
+          : undefined
+      ),
+      model,
+    } as AjaxDevice;
+  }
+
+  // ============================================================
   // Hub Endpoints
   // ============================================================
 
@@ -343,7 +471,8 @@ export class AjaxApiClient {
   async getHubs(): Promise<AjaxHub[]> {
     const basePath = this.getBasePath();
     const data = await this.request('GET', `${basePath}/hubs`);
-    return data as AjaxHub[];
+    const hubs = Array.isArray(data) ? data : [];
+    return hubs.map((h: Record<string, any>) => this.normalizeHub(h));
   }
 
   /**
@@ -351,7 +480,8 @@ export class AjaxApiClient {
    */
   async getHub(hubId: string): Promise<AjaxHub> {
     const basePath = this.getBasePath();
-    return await this.request('GET', `${basePath}/hubs/${hubId}`) as AjaxHub;
+    const raw = await this.request('GET', `${basePath}/hubs/${hubId}`);
+    return this.normalizeHub(raw);
   }
 
   /**
@@ -389,7 +519,8 @@ export class AjaxApiClient {
   async getDevices(hubId: string): Promise<AjaxDevice[]> {
     const basePath = this.getBasePath();
     const data = await this.request('GET', `${basePath}/hubs/${hubId}/devices?enrich=true`);
-    return data as AjaxDevice[];
+    const devices = Array.isArray(data) ? data : [];
+    return devices.map((d: Record<string, any>) => this.normalizeDevice(d));
   }
 
   /**
@@ -397,7 +528,8 @@ export class AjaxApiClient {
    */
   async getDevice(hubId: string, deviceId: string): Promise<AjaxDevice> {
     const basePath = this.getBasePath();
-    return await this.request('GET', `${basePath}/hubs/${hubId}/devices/${deviceId}`) as AjaxDevice;
+    const raw = await this.request('GET', `${basePath}/hubs/${hubId}/devices/${deviceId}`);
+    return this.normalizeDevice(raw);
   }
 
   /**
@@ -481,12 +613,15 @@ export class AjaxApiClient {
    */
   async getHubFresh(hubId: string): Promise<AjaxHub> {
     const basePath = this.getBasePath();
-    return await this.request('GET', `${basePath}/hubs/${hubId}`, undefined, true) as AjaxHub;
+    const raw = await this.request('GET', `${basePath}/hubs/${hubId}`, undefined, true);
+    return this.normalizeHub(raw);
   }
 
   async getDevicesFresh(hubId: string): Promise<AjaxDevice[]> {
     const basePath = this.getBasePath();
-    return await this.request('GET', `${basePath}/hubs/${hubId}/devices?enrich=true`, undefined, true) as AjaxDevice[];
+    const data = await this.request('GET', `${basePath}/hubs/${hubId}/devices?enrich=true`, undefined, true);
+    const devices = Array.isArray(data) ? data : [];
+    return devices.map((d: Record<string, any>) => this.normalizeDevice(d));
   }
 
   /**

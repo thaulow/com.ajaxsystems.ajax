@@ -45,7 +45,18 @@ module.exports = class ContactSensorDevice extends AjaxBaseDevice {
     await this.safeSetCapability('measure_battery', device.batteryChargeLevelPercentage ?? null);
     await this.safeSetCapability('measure_temperature', device.temperature ?? null);
     await this.safeSetCapability('ajax_signal_strength', signalLevelToPercent(device.signalLevel));
-    await this.safeSetCapability('ajax_extra_contact', isExtraContactOpen(device));
+
+    // Only show external contact for devices that actually have the input (DoorProtect Plus)
+    const model = device.model || {};
+    const hasExternalContact = 'extraContactClosed' in model || 'externalContactState' in model;
+    if (hasExternalContact) {
+      if (!this.hasCapability('ajax_extra_contact')) {
+        await this.addCapability('ajax_extra_contact').catch(this.error);
+      }
+      await this.safeSetCapability('ajax_extra_contact', isExtraContactOpen(device));
+    } else if (this.hasCapability('ajax_extra_contact')) {
+      await this.removeCapability('ajax_extra_contact').catch(this.error);
+    }
 
     if (device.online) {
       this.setAvailable().catch(this.error);
