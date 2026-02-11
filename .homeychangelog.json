@@ -40,5 +40,8 @@
   },
   "1.0.14": {
     "en": "Removed Ajax Enterprise business API"
+  },
+  "1.0.15": {
+    "en": "Added 3 new devices"
   }
 }
