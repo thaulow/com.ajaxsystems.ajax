@@ -27,6 +27,7 @@ const BACKOFF_MAX_MS = 60_000;
 const STATE_PROTECTION_SSE_MS = 5_000;
 const STATE_PROTECTION_SQS_MS = 15_000;
 const STALE_DATA_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const FULL_POLL_INTERVAL = 10; // Every Nth poll fetches rooms, groups, hub detail
 
 export class AjaxCoordinator extends EventEmitter {
 
@@ -38,6 +39,7 @@ export class AjaxCoordinator extends EventEmitter {
   private pollingConfig: PollingConfig;
   private pollTimer: NodeJS.Timeout | null = null;
   private running: boolean = false;
+  private pollCount: number = 0;
 
   // Current data
   private data: CoordinatorData = {
@@ -214,6 +216,7 @@ export class AjaxCoordinator extends EventEmitter {
     if (!this.running) return;
 
     try {
+      this.pollCount++;
       await this.fetchAllData();
       this.consecutiveErrors = 0;
     } catch (err) {
@@ -269,17 +272,22 @@ export class AjaxCoordinator extends EventEmitter {
   private async fetchAllData(): Promise<void> {
     const hubs = await this.api.getHubs();
 
+    // Full poll (rooms, groups, hub detail) on first poll and every Nth after.
+    // Lean polls only fetch hubs + devices to minimize API requests.
+    const isFullPoll = this.pollCount <= 1 || this.pollCount % FULL_POLL_INTERVAL === 0;
+
     for (let hub of hubs) {
       const hubId = hub.id;
       const existingHubData = this.data.hubs.get(hubId);
+      // First time seeing this hub always needs a full fetch
+      const needsFull = isFullPoll || !existingHubData;
 
-      // Fetch devices, groups, rooms in parallel.
-      // In proxy mode, also fetch hub details (the list endpoint only has basic fields).
+      // Fetch devices always; rooms, groups, hub detail only on full polls
       const [hubDetail, devices, rooms, groups] = await Promise.all([
-        this.api.isProxyMode() ? this.api.getHub(hubId).catch(() => null) : Promise.resolve(null),
+        needsFull && this.api.isProxyMode() ? this.api.getHub(hubId).catch(() => null) : Promise.resolve(null),
         this.api.getDevices(hubId),
-        this.api.getRooms(hubId),
-        hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve([] as AjaxGroup[]),
+        needsFull ? this.api.getRooms(hubId) : Promise.resolve(null),
+        needsFull && hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve(null),
       ]);
 
       // Merge detailed hub data over the list data (proxy mode)
@@ -287,23 +295,22 @@ export class AjaxCoordinator extends EventEmitter {
         hub = { ...hub, ...hubDetail, id: hubId, name: hub.name || hubDetail.name };
       }
 
-      // Build maps
+      // Build device map (always fresh)
       const deviceMap = new Map<string, AjaxDevice>();
       for (const device of devices) {
         deviceMap.set(device.id, device);
       }
 
-      const roomMap = new Map<string, AjaxRoom>();
-      for (const room of rooms) {
-        roomMap.set(room.id, room);
-      }
+      // Rooms and groups: use fresh data on full poll, otherwise reuse cached
+      const roomMap: Map<string, AjaxRoom> = rooms
+        ? new Map(rooms.map((r: AjaxRoom) => [r.id, r] as const))
+        : existingHubData?.rooms || new Map();
 
-      const groupMap = new Map<string, AjaxGroup>();
-      for (const group of groups) {
-        groupMap.set(group.id, group);
-      }
+      const groupMap: Map<string, AjaxGroup> = groups
+        ? new Map(groups.map((g: AjaxGroup) => [g.id, g] as const))
+        : existingHubData?.groups || new Map();
 
-      // Enrich device room names
+      // Enrich device room names from room map
       for (const device of deviceMap.values()) {
         if (device.roomId && roomMap.has(device.roomId)) {
           device.roomName = roomMap.get(device.roomId)!.name;
@@ -338,8 +345,8 @@ export class AjaxCoordinator extends EventEmitter {
         }
       }
 
-      // Check for group state changes
-      if (existingHubData) {
+      // Check for group state changes (only meaningful on full polls)
+      if (groups && existingHubData) {
         for (const [groupId, group] of groupMap) {
           const existing = existingHubData.groups.get(groupId);
           if (existing && (existing.state !== group.state || existing.nightModeEnabled !== group.nightModeEnabled)) {

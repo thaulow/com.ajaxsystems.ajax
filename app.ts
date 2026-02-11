@@ -215,9 +215,17 @@ module.exports = class AjaxApp extends Homey.App {
   }
 
   private getPollingConfig(): Partial<PollingConfig> {
+    const mode = this.homey.settings.get('auth_mode') as string;
+    const isProxy = mode === 'proxy';
+
+    // Proxy mode: SSE provides real-time events, polling is backup sync only.
+    // Use much longer intervals to stay within the shared 125 req/min proxy limit.
+    const defaultArmed = isProxy ? 60 : 10;
+    const defaultDisarmed = isProxy ? 120 : 30;
+
     return {
-      armedIntervalSeconds: Number(this.homey.settings.get('poll_armed')) || 10,
-      disarmedIntervalSeconds: Number(this.homey.settings.get('poll_disarmed')) || 30,
+      armedIntervalSeconds: Number(this.homey.settings.get('poll_armed')) || defaultArmed,
+      disarmedIntervalSeconds: Number(this.homey.settings.get('poll_disarmed')) || defaultDisarmed,
     };
   }
 
@@ -282,17 +290,12 @@ module.exports = class AjaxApp extends Homey.App {
         }
       });
 
-      this.coordinator.on('authError', async () => {
-        this.error('Authentication error - attempting re-login');
-        try {
-          const session = await this.api.login();
-          this.homey.settings.set('session', session);
-          if (this.sseClient && session.sessionToken) {
-            this.sseClient.updateToken(session.sessionToken);
-          }
-          this.log('Re-login successful after auth error');
-        } catch (err) {
-          this.error('Re-login after auth error failed:', (err as Error).message);
+      // Coordinator handles re-login internally; just sync SSE token here
+      this.coordinator.on('authError', () => {
+        this.error('Authentication error - coordinator is handling re-login');
+        const session = this.api.getSession();
+        if (session && this.sseClient) {
+          this.sseClient.updateToken(session.sessionToken);
         }
       });
     }
