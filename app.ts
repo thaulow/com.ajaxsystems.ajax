@@ -218,14 +218,18 @@ module.exports = class AjaxApp extends Homey.App {
     const mode = this.homey.settings.get('auth_mode') as string;
     const isProxy = mode === 'proxy';
 
-    // Proxy mode: SSE provides real-time events, polling is backup sync only.
-    // Use much longer intervals to stay within the shared 125 req/min proxy limit.
+    // Proxy mode: SSE provides real-time events when armed, but NOT when disarmed.
+    // When armed: SSE handles real-time → poll less often (backup sync only).
+    // When disarmed: no SSE events → poll more often (only way to detect state changes).
+    // Matches foXaCe reference integration intervals.
     const defaultArmed = isProxy ? 60 : 10;
-    const defaultDisarmed = isProxy ? 120 : 30;
+    const defaultDisarmed = isProxy ? 30 : 30;
 
     return {
       armedIntervalSeconds: Number(this.homey.settings.get('poll_armed')) || defaultArmed,
       disarmedIntervalSeconds: Number(this.homey.settings.get('poll_disarmed')) || defaultDisarmed,
+      doorSensorFastPoll: !isProxy && !!this.homey.settings.get('door_sensor_fast_poll'),
+      doorSensorIntervalSeconds: Number(this.homey.settings.get('door_sensor_interval')) || 5,
     };
   }
 

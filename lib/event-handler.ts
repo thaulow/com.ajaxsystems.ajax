@@ -160,7 +160,6 @@ export class AjaxEventHandler {
       case 'BURGLARY_ALARM':
         modelUpdate.state = 'ALARM';
         modelUpdate.motionDetected = true;
-        modelUpdate.reedClosed = false;
         break;
       case 'FIRE_ALARM':
         modelUpdate.smokeAlarmDetected = true;
@@ -252,29 +251,50 @@ export class AjaxEventHandler {
 
   /** Map of event codes to partial model updates for immediate device state. */
   private static readonly EVENT_CODE_STATE: Record<string, Record<string, any>> = {
-    // DoorProtect
+    // ── DoorProtect ──
     'M_01_20': { reedClosed: false },
     'M_01_21': { reedClosed: true },
     'M_01_22': { extraContactClosed: false },
     'M_01_23': { extraContactClosed: true },
-    // DoorProtect Plus
+    // ── DoorProtect Plus ──
     'M_0F_20': { reedClosed: false },
     'M_0F_21': { reedClosed: true },
     'M_0F_22': { extraContactClosed: false },
     'M_0F_23': { extraContactClosed: true },
-    // LeakProtect
+    'M_0F_30': { glassBreak: true },  // shock detected
+    'M_0F_31': { glassBreak: true },  // tilt detected
+    // ── MotionProtect ──
+    'M_02_20': { motionDetected: true },
+    // ── MotionProtect Curtain ──
+    'M_06_20': { motionDetected: true },
+    'M_06_22': { tamperState: 'OPEN' },   // masking detected
+    'M_06_23': { tamperState: 'CLOSED' },  // masking cleared
+    // ── CombiProtect ──
+    'M_08_20': { motionDetected: true },
+    'M_08_21': { glassBreak: true },
+    // ── MotionCam ──
+    'M_0D_20': { motionDetected: true },
+    // ── MotionProtect Plus ──
+    'M_0E_20': { motionDetected: true },
+    // ── MotionProtect Outdoor ──
+    'M_13_20': { motionDetected: true },
+    'M_13_22': { tamperState: 'OPEN' },   // masking detected
+    'M_13_23': { tamperState: 'CLOSED' },  // masking cleared
+    // ── GlassProtect ──
+    'M_04_20': { glassBreak: true },
+    'M_04_22': { extraContactClosed: false },
+    'M_04_23': { extraContactClosed: true },
+    // ── LeakProtect ──
     'M_05_20': { leakDetected: true },
     'M_05_21': { leakDetected: false },
-    // GlassProtect
-    'M_04_20': { glassBreak: true },
-    // FireProtect
+    // ── FireProtect ──
     'M_03_20': { smokeAlarmDetected: true },
     'M_03_21': { smokeAlarmDetected: false },
     'M_03_22': { temperatureAlarmDetected: true },
     'M_03_23': { temperatureAlarmDetected: false },
     'M_03_2A': { highTemperatureDiffDetected: true },
     'M_03_2B': { highTemperatureDiffDetected: false },
-    // FireProtect Plus
+    // ── FireProtect Plus ──
     'M_09_20': { smokeAlarmDetected: true },
     'M_09_21': { smokeAlarmDetected: false },
     'M_09_22': { temperatureAlarmDetected: true },
@@ -283,6 +303,19 @@ export class AjaxEventHandler {
     'M_09_2B': { highTemperatureDiffDetected: false },
     'M_09_30': { coAlarmDetected: true },
     'M_09_31': { coAlarmDetected: false },
+    // ── Relay ──
+    'M_12_22': { switchState: 'ON' },
+    'M_12_23': { switchState: 'OFF' },
+    // ── Socket ──
+    'M_1E_22': { switchState: 'ON' },
+    'M_1E_23': { switchState: 'OFF' },
+    // ── WallSwitch ──
+    'M_1F_22': { switchState: 'ON' },
+    'M_1F_23': { switchState: 'OFF' },
+    // ── Transmitter ──
+    'M_11_20': { reedClosed: false },
+    'M_11_21': { reedClosed: true },
+    'M_11_22': { extraContactClosed: false },
   };
 
   private applyEventCodeState(event: IntegrationEvent, coordinator: AjaxCoordinator): void {

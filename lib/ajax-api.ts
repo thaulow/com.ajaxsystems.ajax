@@ -41,6 +41,9 @@ export class AjaxApiClient {
   // Refresh deduplication
   private refreshPromise: Promise<void> | null = null;
 
+  // Proxy suggested polling interval (from X-Suggested-Interval header, in seconds)
+  suggestedInterval: number = 0;
+
   constructor(credentials: AuthCredentials, log: (...args: any[]) => void, error: (...args: any[]) => void) {
     this.credentials = credentials;
     this.log = log;
@@ -297,6 +300,12 @@ export class AjaxApiClient {
       };
 
       const req = transport.request(options, (res) => {
+        // Capture proxy suggested interval for rate-limit-aware polling
+        const suggestedHeader = res.headers['x-suggested-interval'];
+        if (suggestedHeader) {
+          this.suggestedInterval = Number(suggestedHeader) || 0;
+        }
+
         let data = '';
         res.setEncoding('utf8');
         res.on('data', (chunk: string) => { data += chunk; });

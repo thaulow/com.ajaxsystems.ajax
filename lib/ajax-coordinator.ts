@@ -28,6 +28,7 @@ const STATE_PROTECTION_SSE_MS = 5_000;
 const STATE_PROTECTION_SQS_MS = 15_000;
 const STALE_DATA_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const FULL_POLL_INTERVAL = 10; // Every Nth poll fetches rooms, groups, hub detail
+const MOTION_CLEAR_DELAY_MS = 60_000; // Auto-clear motion detection after 60 seconds
 
 export class AjaxCoordinator extends EventEmitter {
 
@@ -52,6 +53,12 @@ export class AjaxCoordinator extends EventEmitter {
 
   // State protection: device IDs with timestamps that should not be overwritten by polling
   private stateProtection: Map<string, number> = new Map();
+
+  // Motion auto-clear timers: deviceId → timeout handle
+  private motionClearTimers: Map<string, NodeJS.Timeout> = new Map();
+
+  // Bypass proxy cache on next poll (set after SSE/SQS events for fresh data)
+  private bypassCacheNextPoll: boolean = false;
 
   constructor(
     api: AjaxApiClient,
@@ -96,6 +103,10 @@ export class AjaxCoordinator extends EventEmitter {
       this.homey.clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
+    for (const timer of this.motionClearTimers.values()) {
+      this.homey.clearTimeout(timer);
+    }
+    this.motionClearTimers.clear();
     this.log('Coordinator stopped');
   }
 
@@ -185,6 +196,30 @@ export class AjaxCoordinator extends EventEmitter {
   }
 
   // ============================================================
+  // Motion Auto-Clear
+  // ============================================================
+
+  private scheduleMotionClear(hubId: string, deviceId: string): void {
+    // Cancel any existing timer for this device
+    const existing = this.motionClearTimers.get(deviceId);
+    if (existing) {
+      this.homey.clearTimeout(existing);
+    }
+
+    const timer = this.homey.setTimeout(() => {
+      this.motionClearTimers.delete(deviceId);
+      const hubData = this.data.hubs.get(hubId);
+      const device = hubData?.devices.get(deviceId);
+      if (device && device.model?.motionDetected === true) {
+        device.model.motionDetected = false;
+        this.emit('deviceStateChange', { hubId, deviceId, device });
+      }
+    }, MOTION_CLEAR_DELAY_MS);
+
+    this.motionClearTimers.set(deviceId, timer);
+  }
+
+  // ============================================================
   // Polling
   // ============================================================
 
@@ -199,9 +234,22 @@ export class AjaxCoordinator extends EventEmitter {
       }
     }
 
-    const seconds = anyArmed
+    let seconds = anyArmed
       ? this.pollingConfig.armedIntervalSeconds
       : this.pollingConfig.disarmedIntervalSeconds;
+
+    // Door sensor fast poll: when disarmed in direct mode, poll at shorter interval
+    // so contact sensors update within seconds. Disabled in proxy mode (foXaCe design)
+    // because SSE handles armed events and fast polling strains the shared proxy.
+    if (!anyArmed && this.pollingConfig.doorSensorFastPoll && !this.api.isProxyMode()) {
+      seconds = this.pollingConfig.doorSensorIntervalSeconds;
+    }
+
+    // Respect proxy suggested interval if higher (shared rate limit)
+    const suggested = this.api.suggestedInterval;
+    if (suggested > 0 && suggested > seconds) {
+      seconds = suggested;
+    }
 
     return seconds * 1000;
   }
@@ -276,6 +324,10 @@ export class AjaxCoordinator extends EventEmitter {
     // Lean polls only fetch hubs + devices to minimize API requests.
     const isFullPoll = this.pollCount <= 1 || this.pollCount % FULL_POLL_INTERVAL === 0;
 
+    // After SSE/SQS events, bypass proxy cache to get confirmed fresh data
+    const useNoCache = this.bypassCacheNextPoll;
+    this.bypassCacheNextPoll = false;
+
     for (let hub of hubs) {
       const hubId = hub.id;
       const existingHubData = this.data.hubs.get(hubId);
@@ -283,9 +335,10 @@ export class AjaxCoordinator extends EventEmitter {
       const needsFull = isFullPoll || !existingHubData;
 
       // Fetch devices always; rooms, groups, hub detail only on full polls
+      // Use no-cache variants after real-time events to bypass proxy cache
       const [hubDetail, devices, rooms, groups] = await Promise.all([
-        needsFull && this.api.isProxyMode() ? this.api.getHub(hubId).catch(() => null) : Promise.resolve(null),
-        this.api.getDevices(hubId),
+        needsFull && this.api.isProxyMode() ? (useNoCache ? this.api.getHubFresh(hubId) : this.api.getHub(hubId)).catch(() => null) : Promise.resolve(null),
+        useNoCache ? this.api.getDevicesFresh(hubId) : this.api.getDevices(hubId),
         needsFull ? this.api.getRooms(hubId) : Promise.resolve(null),
         needsFull && hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve(null),
       ]);
@@ -419,6 +472,7 @@ export class AjaxCoordinator extends EventEmitter {
 
     Object.assign(hubData.hub, partialHub);
     this.protectHubState(hubId, source);
+    this.bypassCacheNextPoll = true;
     this.emit('hubStateChange', { hubId, hub: hubData.hub });
   }
 
@@ -437,7 +491,13 @@ export class AjaxCoordinator extends EventEmitter {
       device.model = { ...device.model, ...partialDevice.model };
     }
     this.protectDeviceState(deviceId, source);
+    this.bypassCacheNextPoll = true;
     this.emit('deviceStateChange', { hubId, deviceId, device });
+
+    // Auto-clear motion detection after timeout (motion sensors don't send "clear" events)
+    if (partialDevice.model?.motionDetected === true) {
+      this.scheduleMotionClear(hubId, deviceId);
+    }
   }
 
   /**
