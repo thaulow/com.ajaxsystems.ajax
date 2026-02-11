@@ -49,5 +49,8 @@
   },
   "1.0.17": {
     "en": "Fix proxy mode"
+  },
+  "1.0.18": {
+    "en": "Added support for SIA and Proxy API together"
   }
 }
