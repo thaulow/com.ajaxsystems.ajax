@@ -5,7 +5,10 @@ import {
   IntegrationEvent,
   IntegrationUpdate,
   ArmingState,
+  ApiAlarmEvent,
+  ApiAlarmType,
 } from './types';
+import { lookupEventCode, buildEventDescription } from './event-codes';
 
 // Event tag to arming state mapping (from foXaCe integration)
 const EVENT_TAG_TO_STATE: Record<string, ArmingState> = {
@@ -49,46 +52,36 @@ export class AjaxEventHandler {
 
       this.log(`Event: ${event.event.eventType} from ${event.event.sourceObjectType} "${event.event.sourceObjectName}"`);
 
-      const hubId = event.event.hubId;
-      const sourceType = event.event.sourceObjectType;
-      const sourceId = event.event.sourceObjectId;
       const eventType = event.event.eventTypeV2 || event.event.eventType;
 
       // Handle security state changes (arm/disarm/night)
       if (eventType === 'SECURITY') {
         this.handleSecurityEvent(event, coordinator);
-        return;
       }
-
       // Handle device alarms
-      if (TRIGGER_EVENT_TYPES.includes(eventType)) {
+      else if (TRIGGER_EVENT_TYPES.includes(eventType)) {
         this.handleAlarmEvent(event, coordinator);
-        return;
       }
-
       // Handle alarm recovery
-      if (eventType === 'ALARM_RECOVERED' || eventType === 'SMART_HOME_ALARM_RECOVERED') {
+      else if (eventType === 'ALARM_RECOVERED' || eventType === 'SMART_HOME_ALARM_RECOVERED') {
         this.handleAlarmRecovery(event, coordinator);
-        return;
       }
-
       // Handle device state updates
-      if (eventType === 'SMART_HOME_ACTUATOR' || eventType === 'SMART_HOME_EVENT') {
+      else if (eventType === 'SMART_HOME_ACTUATOR' || eventType === 'SMART_HOME_EVENT') {
         this.handleActuatorEvent(event, coordinator);
-        return;
       }
-
       // Handle malfunctions
-      if (eventType === 'MALFUNCTION' || eventType === 'SMART_HOME_MALFUNCTION') {
+      else if (eventType === 'MALFUNCTION' || eventType === 'SMART_HOME_MALFUNCTION' || eventType === 'FUNCTION_RECOVERED') {
         this.handleMalfunctionEvent(event, coordinator);
-        return;
+      }
+      // Handle lifecycle events
+      else if (eventType === 'LIFECYCLE') {
+        this.handleLifecycleEvent(event, coordinator);
       }
 
-      // Handle lifecycle events
-      if (eventType === 'LIFECYCLE') {
-        this.handleLifecycleEvent(event, coordinator);
-        return;
-      }
+      // Always emit apiAlarmEvent for flow card triggers in API mode
+      const apiAlarmEvent = this.buildApiAlarmEvent(event);
+      coordinator.emit('apiAlarmEvent', apiAlarmEvent);
 
     } catch (err) {
       this.error('Error handling event:', (err as Error).message);
@@ -246,6 +239,159 @@ export class AjaxEventHandler {
     if (connectionInfo) {
       const online = connectionInfo.hubConnectionStatus === 'ONLINE';
       coordinator.updateHubState(hubId, { online } as any, 'sqs');
+    }
+  }
+
+  // ============================================================
+  // API Alarm Event Builder
+  // ============================================================
+
+  private buildApiAlarmEvent(event: IntegrationEvent): ApiAlarmEvent {
+    const ev = event.event;
+    const eventCode = ev.eventCode || '';
+    const eventType = ev.eventTypeV2 || ev.eventType;
+    const codeInfo = lookupEventCode(eventCode);
+    const additionalData = ev.additionalDataV2 || [];
+
+    // Resolve alarm type through priority chain
+    let alarmType: ApiAlarmType = 'unknown';
+    let category: string | undefined;
+
+    // 1. Try event code table category
+    if (codeInfo) {
+      alarmType = this.categoryToAlarmType(codeInfo.category, codeInfo.isRestore);
+      category = codeInfo.category;
+    }
+    // 2. Try additionalDataV2 CUSTOM_ALARM_TYPE_INFO
+    else {
+      const alarmInfo = additionalData.find((d: any) => d.type === 'CUSTOM_ALARM_TYPE_INFO');
+      if (alarmInfo?.customAlarmType) {
+        const mapped = this.customAlarmTypeToAlarmType(alarmInfo.customAlarmType);
+        alarmType = mapped.type;
+        category = mapped.category;
+      }
+      // 3. Fallback to eventType
+      else {
+        const mapped = this.eventTypeToAlarmType(eventType, eventCode, additionalData);
+        alarmType = mapped.type;
+        category = mapped.category;
+      }
+    }
+
+    // Build description
+    const description = buildEventDescription(
+      eventCode || undefined,
+      eventType,
+      ev.sourceObjectName || '',
+      ev.sourceRoomName || undefined,
+      ev.hubName || '',
+    );
+
+    return {
+      hubId: ev.hubId,
+      hubName: ev.hubName || '',
+      type: alarmType,
+      category,
+      description,
+      deviceName: ev.sourceObjectName || '',
+      roomName: ev.sourceRoomName || '',
+      eventType,
+      eventCode: eventCode || undefined,
+      timestamp: ev.timestamp || Date.now(),
+    };
+  }
+
+  private categoryToAlarmType(category: string, isRestore: boolean): ApiAlarmType {
+    switch (category) {
+      case 'burglary': return isRestore ? 'alarm_restore' : 'alarm';
+      case 'fire': return isRestore ? 'alarm_restore' : 'alarm';
+      case 'water': return isRestore ? 'alarm_restore' : 'alarm';
+      case 'gas': return isRestore ? 'alarm_restore' : 'alarm';
+      case 'tamper': return 'tamper';
+      case 'tamper_restore': return 'tamper_restore';
+      case 'panic': return 'panic';
+      case 'duress': return 'duress';
+      case 'arm': return 'arm';
+      case 'disarm': return 'disarm';
+      case 'night_arm': return 'night_arm';
+      case 'night_disarm': return 'night_disarm';
+      case 'group_arm': return 'group_arm';
+      case 'group_disarm': return 'group_disarm';
+      case 'armed_with_faults': return 'armed_with_faults';
+      case 'arming_failed': return 'arming_failed';
+      case 'power_trouble': return 'power_trouble';
+      case 'power_restore': return 'power_restore';
+      case 'device_lost': return 'device_lost';
+      case 'device_restore': return 'device_restore';
+      case 'trouble': return 'trouble';
+      case 'trouble_restore': return 'trouble_restore';
+      case 'system': return 'system';
+      case 'test': return 'test';
+      default: return 'unknown';
+    }
+  }
+
+  private customAlarmTypeToAlarmType(customType: string): { type: ApiAlarmType; category?: string } {
+    switch (customType) {
+      case 'BURGLARY_ALARM': return { type: 'alarm', category: 'burglary' };
+      case 'FIRE_ALARM': return { type: 'alarm', category: 'fire' };
+      case 'PANIC_ALARM': return { type: 'panic' };
+      case 'LEAK': return { type: 'alarm', category: 'water' };
+      case 'GLASS_BREAK_ALARM': return { type: 'alarm', category: 'burglary' };
+      case 'HIGH_TEMPERATURE_ALARM':
+      case 'LOW_TEMPERATURE_ALARM': return { type: 'alarm', category: 'fire' };
+      case 'CO_ALARM': return { type: 'alarm', category: 'gas' };
+      case 'TAMPER': return { type: 'tamper' };
+      case 'DURESS': return { type: 'duress' };
+      default: return { type: 'alarm' };
+    }
+  }
+
+  private eventTypeToAlarmType(
+    eventType: string,
+    eventCode: string,
+    additionalData: Array<Record<string, any>>,
+  ): { type: ApiAlarmType; category?: string } {
+    switch (eventType) {
+      case 'ALARM':
+      case 'ALARM_WARNING':
+      case 'SMART_HOME_ALARM':
+        return { type: 'alarm' };
+
+      case 'ALARM_RECOVERED':
+      case 'SMART_HOME_ALARM_RECOVERED':
+        return { type: 'alarm_restore' };
+
+      case 'MALFUNCTION':
+      case 'SMART_HOME_MALFUNCTION':
+        return { type: 'trouble' };
+
+      case 'FUNCTION_RECOVERED':
+        return { type: 'trouble_restore' };
+
+      case 'SECURITY': {
+        // Try to resolve arm/disarm from event code tags
+        const code = eventCode.toUpperCase();
+        if (code.includes('NIGHT_MODE_OFF') || code.includes('NIGHT_MODE_DEACTIVAT')) return { type: 'night_disarm' };
+        if (code.includes('NIGHT_MODE')) return { type: 'night_arm' };
+        if (code.includes('DISARM')) return { type: 'disarm' };
+        if (code.includes('ARM')) return { type: 'arm' };
+        return { type: 'system' };
+      }
+
+      case 'COMMON':
+      case 'SMART_HOME_ACTUATOR':
+      case 'SMART_HOME_EVENT':
+        return { type: 'system' };
+
+      case 'USER':
+        return { type: 'system' };
+
+      case 'LIFECYCLE':
+        return { type: 'system' };
+
+      default:
+        return { type: 'unknown' };
     }
   }
 

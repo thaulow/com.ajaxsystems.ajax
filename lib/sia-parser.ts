@@ -628,25 +628,10 @@ export function buildSiaAck(message: SiaMessage): Buffer {
 // ============================================================
 
 /**
- * Determine if a CID event code represents an arm event.
- */
-export function isArmEvent(code: string): boolean {
-  const armCodes = ['400', '401', '402', '403', '407', '408', '409'];
-  return armCodes.includes(code);
-}
-
-/**
  * Determine if a CID event code represents a night/stay arm event.
  */
 export function isNightArmEvent(code: string): boolean {
   return code === '441' || code === '442';
-}
-
-/**
- * Determine if a CID event code represents a partial arm event.
- */
-export function isPartialArmEvent(code: string): boolean {
-  return code === '456';
 }
 
 /**
@@ -655,29 +640,6 @@ export function isPartialArmEvent(code: string): boolean {
 export function isAlarmEvent(code: string): boolean {
   const num = parseInt(code);
   return num >= 100 && num < 200;
-}
-
-/**
- * Determine if a CID event code is a fire alarm.
- */
-export function isFireAlarm(code: string): boolean {
-  const num = parseInt(code);
-  return num >= 110 && num < 120;
-}
-
-/**
- * Determine if a CID event code is a burglary/intrusion alarm.
- */
-export function isBurglaryAlarm(code: string): boolean {
-  const num = parseInt(code);
-  return num >= 130 && num < 140;
-}
-
-/**
- * Determine if a CID event code is a water leak alarm.
- */
-export function isWaterAlarm(code: string): boolean {
-  return code === '153' || code === '154';
 }
 
 /**

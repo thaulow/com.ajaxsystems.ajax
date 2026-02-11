@@ -41,10 +41,6 @@ export interface AuthCredentials {
   // Proxy mode
   proxyUrl?: string;
   verifySsl?: boolean;
-  // SIA mode
-  siaPort?: number;
-  siaAccountId?: string;
-  siaEncryptionKey?: string;
 }
 
 // ============================================================
@@ -389,6 +385,31 @@ export interface GroupStateChange {
   hubId: string;
   groupId: string;
   group: AjaxGroup;
+}
+
+// ============================================================
+// API Alarm Event (parallel to SiaAlarmEvent for SQS/SSE events)
+// ============================================================
+
+export type ApiAlarmType =
+  | 'arm' | 'disarm' | 'night_arm' | 'night_disarm' | 'partial_arm'
+  | 'group_arm' | 'group_disarm' | 'armed_with_faults' | 'arming_failed'
+  | 'alarm' | 'alarm_restore' | 'tamper' | 'tamper_restore'
+  | 'trouble' | 'trouble_restore' | 'power_trouble' | 'power_restore'
+  | 'device_lost' | 'device_restore' | 'bypass' | 'unbypass'
+  | 'panic' | 'duress' | 'system' | 'test' | 'unknown';
+
+export interface ApiAlarmEvent {
+  hubId: string;
+  hubName: string;
+  type: ApiAlarmType;
+  category?: string;
+  description: string;
+  deviceName: string;
+  roomName: string;
+  eventType: string;
+  eventCode?: string;
+  timestamp: number;
 }
 
 // ============================================================

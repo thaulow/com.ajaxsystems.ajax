@@ -458,6 +458,23 @@ export class AjaxApiClient {
     } as AjaxDevice;
   }
 
+  private normalizeGroup(raw: Record<string, any>): AjaxGroup {
+    return {
+      id: raw.id || raw.groupId || raw.group_id,
+      name: raw.name || raw.groupName || raw.group_name || 'Group',
+      state: raw.state || 'DISARMED',
+      nightModeEnabled: raw.nightModeEnabled ?? raw.night_mode_enabled ?? false,
+      deviceIds: raw.deviceIds || raw.device_ids,
+    } as AjaxGroup;
+  }
+
+  private normalizeRoom(raw: Record<string, any>): AjaxRoom {
+    return {
+      id: raw.id || raw.roomId || raw.room_id,
+      name: raw.name || raw.roomName || raw.room_name || 'Room',
+    };
+  }
+
   // ============================================================
   // Hub Endpoints
   // ============================================================
@@ -556,7 +573,8 @@ export class AjaxApiClient {
   async getGroups(hubId: string): Promise<AjaxGroup[]> {
     const basePath = this.getBasePath();
     const data = await this.request('GET', `${basePath}/hubs/${hubId}/groups`);
-    return data as AjaxGroup[];
+    const groups = Array.isArray(data) ? data : [];
+    return groups.map((g: Record<string, any>) => this.normalizeGroup(g));
   }
 
   /**
@@ -564,7 +582,8 @@ export class AjaxApiClient {
    */
   async getGroup(hubId: string, groupId: string): Promise<AjaxGroup> {
     const basePath = this.getBasePath();
-    return await this.request('GET', `${basePath}/hubs/${hubId}/groups/${groupId}`) as AjaxGroup;
+    const raw = await this.request('GET', `${basePath}/hubs/${hubId}/groups/${groupId}`);
+    return this.normalizeGroup(raw);
   }
 
   /**
@@ -586,7 +605,8 @@ export class AjaxApiClient {
   async getRooms(hubId: string): Promise<AjaxRoom[]> {
     const basePath = this.getBasePath();
     const data = await this.request('GET', `${basePath}/hubs/${hubId}/rooms`);
-    return data as AjaxRoom[];
+    const rooms = Array.isArray(data) ? data : [];
+    return rooms.map((r: Record<string, any>) => this.normalizeRoom(r));
   }
 
   // ============================================================

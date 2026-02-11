@@ -7,6 +7,7 @@ import { isTampered, signalLevelToPercent } from '../../lib/util';
 module.exports = class SirenDevice extends AjaxBaseDevice {
 
   private deviceListenerBound: ((data: any) => void) | null = null;
+  private dataUpdatedBound: (() => void) | null = null;
 
   async onInit(): Promise<void> {
     this.log('Siren device init:', this.getName());
@@ -24,13 +25,18 @@ module.exports = class SirenDevice extends AjaxBaseDevice {
       }
     };
     coordinator.on('deviceStateChange', this.deviceListenerBound);
-    coordinator.on('dataUpdated', () => this.updateFromCoordinator());
+    this.dataUpdatedBound = () => this.updateFromCoordinator();
+    coordinator.on('dataUpdated', this.dataUpdatedBound);
     this.updateFromCoordinator();
   }
 
   async onUninit(): Promise<void> {
-    if (this.deviceListenerBound) {
-      this.getCoordinator()?.removeListener('deviceStateChange', this.deviceListenerBound);
+    const coordinator = this.getCoordinator();
+    if (coordinator && this.deviceListenerBound) {
+      coordinator.removeListener('deviceStateChange', this.deviceListenerBound);
+    }
+    if (coordinator && this.dataUpdatedBound) {
+      coordinator.removeListener('dataUpdated', this.dataUpdatedBound);
     }
   }
 

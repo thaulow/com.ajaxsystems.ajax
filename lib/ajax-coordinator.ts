@@ -108,6 +108,18 @@ export class AjaxCoordinator extends EventEmitter {
   }
 
   // ============================================================
+  // Runtime Updates
+  // ============================================================
+
+  /**
+   * Swap the API client (e.g., after re-login).
+   * Preserves all event listeners and cached data.
+   */
+  updateApi(api: AjaxApiClient): void {
+    this.api = api;
+  }
+
+  // ============================================================
   // Data Access
   // ============================================================
 

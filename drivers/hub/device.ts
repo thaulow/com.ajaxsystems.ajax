@@ -1,7 +1,7 @@
 'use strict';
 
 import { AjaxBaseDevice } from '../../lib/base-device';
-import { AjaxHub } from '../../lib/types';
+import { AjaxHub, ApiAlarmEvent } from '../../lib/types';
 import { SiaAlarmEvent } from '../../lib/sia-server';
 import {
   armingStateToHomey,
@@ -13,6 +13,8 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
   private hubListenerBound: ((data: any) => void) | null = null;
   private onlineListenerBound: ((data: any) => void) | null = null;
+  private dataUpdatedBound: (() => void) | null = null;
+  private apiAlarmEventBound: ((event: ApiAlarmEvent) => void) | null = null;
   private siaEventBound: ((event: SiaAlarmEvent) => void) | null = null;
   private siaHeartbeatBound: ((account: string) => void) | null = null;
   private siaConnectedBound: ((address: string) => void) | null = null;
@@ -66,6 +68,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       }
       if (coordinator && this.onlineListenerBound) {
         coordinator.removeListener('hubOnlineChange', this.onlineListenerBound);
+      }
+      if (coordinator && this.dataUpdatedBound) {
+        coordinator.removeListener('dataUpdated', this.dataUpdatedBound);
+      }
+      if (coordinator && this.apiAlarmEventBound) {
+        coordinator.removeListener('apiAlarmEvent', this.apiAlarmEventBound);
       }
     }
   }
@@ -505,6 +513,18 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   // ============================================================
 
   private async initApiMode(): Promise<void> {
+    // Migrate: add alarm sensor capabilities for API mode event reporting
+    const alarmCaps = [
+      'alarm_generic', 'alarm_fire', 'alarm_water', 'alarm_co',
+      'alarm_battery', 'ajax_ac_power', 'ajax_device_lost',
+      'ajax_rf_interference', 'ajax_last_event',
+    ];
+    for (const cap of alarmCaps) {
+      if (!this.hasCapability(cap)) {
+        await this.addCapability(cap).catch(this.error);
+      }
+    }
+
     // Ensure capabilities are interactive (in case device was previously SIA)
     await this.setCapabilityOptions('ajax_night_mode', {
       uiComponent: 'toggle',
@@ -535,9 +555,12 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     const coordinator = this.getCoordinator();
     this.hubListenerBound = (data: any) => this.onHubStateChange(data);
     this.onlineListenerBound = (data: any) => this.onHubOnlineChange(data);
+    this.dataUpdatedBound = () => this.updateFromCoordinator();
+    this.apiAlarmEventBound = (event: ApiAlarmEvent) => this.onApiAlarmEvent(event);
     coordinator.on('hubStateChange', this.hubListenerBound);
     coordinator.on('hubOnlineChange', this.onlineListenerBound);
-    coordinator.on('dataUpdated', () => this.updateFromCoordinator());
+    coordinator.on('dataUpdated', this.dataUpdatedBound);
+    coordinator.on('apiAlarmEvent', this.apiAlarmEventBound);
 
     // Initial update
     this.updateFromCoordinator();
@@ -566,6 +589,174 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     } else {
       this.setAvailable().catch(this.error);
     }
+  }
+
+  private onApiAlarmEvent(event: ApiAlarmEvent): void {
+    if (event.hubId !== this.getHubId()) return;
+
+    this.log(`API event: ${event.type} - ${event.description}`);
+
+    // Update last event capability
+    this.safeSetCapability('ajax_last_event', event.description);
+
+    switch (event.type) {
+      // ── Arming ─────────────────────────────────
+      case 'arm':
+        this.triggerCard('hub_armed', { hub_name: this.getName() });
+        break;
+
+      case 'disarm':
+        this.triggerCard('hub_disarmed', { hub_name: this.getName() });
+        break;
+
+      case 'night_arm':
+        this.triggerCard('night_mode_armed', { zone: 0, description: event.description });
+        break;
+
+      case 'night_disarm':
+        this.triggerCard('night_mode_disarmed', { zone: 0, description: event.description });
+        break;
+
+      case 'partial_arm':
+        this.triggerCard('hub_armed', { hub_name: this.getName() });
+        break;
+
+      case 'group_arm':
+        this.triggerCard('group_armed', { zone: 0, description: event.description });
+        break;
+
+      case 'group_disarm':
+        this.triggerCard('group_disarmed', { zone: 0, description: event.description });
+        break;
+
+      case 'armed_with_faults':
+        this.triggerCard('armed_with_faults', { zone: 0, description: event.description });
+        break;
+
+      case 'arming_failed':
+        this.triggerCard('arming_failed', { zone: 0, description: event.description });
+        break;
+
+      // ── Alarms ─────────────────────────────────
+      case 'alarm':
+        this.safeSetCapability('alarm_generic', true);
+        if (event.category === 'fire') {
+          this.safeSetCapability('alarm_fire', true);
+          this.triggerCard('fire_alarm_triggered', { zone: 0, description: event.description });
+        } else if (event.category === 'water') {
+          this.safeSetCapability('alarm_water', true);
+          this.triggerCard('water_alarm_triggered', { zone: 0, description: event.description });
+        } else if (event.category === 'gas') {
+          this.safeSetCapability('alarm_co', true);
+          this.triggerCard('gas_co_alarm', { zone: 0, description: event.description });
+        } else if (event.category === 'burglary') {
+          this.triggerCard('burglary_alarm', { zone: 0, description: event.description });
+        }
+        break;
+
+      case 'alarm_restore':
+        if (event.category === 'fire') this.safeSetCapability('alarm_fire', false);
+        else if (event.category === 'water') this.safeSetCapability('alarm_water', false);
+        else if (event.category === 'gas') this.safeSetCapability('alarm_co', false);
+        this.checkAndClearGenericAlarm();
+        this.triggerCard('alarm_restored', {
+          zone: 0,
+          alarm_type: event.category || 'unknown',
+          description: event.description,
+        });
+        break;
+
+      // ── Panic & Duress ─────────────────────────
+      case 'panic':
+        this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('panic_alarm', { zone: 0, description: event.description });
+        break;
+
+      case 'duress':
+        this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('duress_alarm', { zone: 0, description: event.description });
+        break;
+
+      // ── Tamper ─────────────────────────────────
+      case 'tamper':
+        this.safeSetCapability('alarm_tamper', true);
+        this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('tamper_alarm', { zone: 0, description: event.description });
+        break;
+
+      case 'tamper_restore':
+        this.safeSetCapability('alarm_tamper', false);
+        this.checkAndClearGenericAlarm();
+        this.triggerCard('tamper_restored', { zone: 0, description: event.description });
+        break;
+
+      // ── Power / Battery ────────────────────────
+      case 'power_trouble':
+        this.safeSetCapability('alarm_battery', true);
+        this.triggerCard('power_trouble', {
+          zone: 0,
+          trouble_type: event.description,
+          description: event.description,
+        });
+        break;
+
+      case 'power_restore':
+        this.safeSetCapability('alarm_battery', false);
+        this.triggerCard('power_restored', {
+          zone: 0,
+          trouble_type: event.description,
+          description: event.description,
+        });
+        break;
+
+      // ── Device Communication ───────────────────
+      case 'device_lost':
+        this.safeSetCapability('ajax_device_lost', true);
+        this.triggerCard('device_connection_lost', { zone: 0, description: event.description });
+        break;
+
+      case 'device_restore':
+        this.safeSetCapability('ajax_device_lost', false);
+        this.triggerCard('device_connection_restored', { zone: 0, description: event.description });
+        break;
+
+      // ── Trouble ────────────────────────────────
+      case 'trouble':
+        this.safeSetCapability('alarm_generic', true);
+        this.triggerCard('trouble_event', {
+          zone: 0,
+          trouble_type: event.description,
+          description: event.description,
+        });
+        break;
+
+      case 'trouble_restore':
+        this.checkAndClearGenericAlarm();
+        this.triggerCard('trouble_restored', {
+          zone: 0,
+          trouble_type: event.description,
+          description: event.description,
+        });
+        break;
+
+      // ── System & Test ──────────────────────────
+      case 'system':
+        this.triggerCard('system_event', { event_type: event.description, description: event.description });
+        break;
+
+      case 'test':
+        this.triggerCard('system_event', { event_type: 'Automatic test', description: event.description });
+        break;
+    }
+
+    // Always fire the generic catch-all flow card for every event
+    this.triggerCard('alarm_event', {
+      hub_name: this.getName(),
+      event_type: event.type,
+      device_name: event.deviceName || '',
+      room_name: event.roomName || '',
+      description: event.description,
+    });
   }
 
   private async updateCapabilities(hub: AjaxHub): Promise<void> {

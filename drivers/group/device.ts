@@ -6,6 +6,7 @@ import { AjaxGroup } from '../../lib/types';
 module.exports = class GroupDevice extends AjaxBaseDevice {
 
   private groupListenerBound: ((data: any) => void) | null = null;
+  private dataUpdatedBound: (() => void) | null = null;
 
   async onInit(): Promise<void> {
     this.log('Group device init:', this.getName());
@@ -26,8 +27,9 @@ module.exports = class GroupDevice extends AjaxBaseDevice {
 
     const coordinator = this.getCoordinator();
     this.groupListenerBound = (data: any) => this.onGroupStateChange(data);
+    this.dataUpdatedBound = () => this.updateFromCoordinator();
     coordinator.on('groupStateChange', this.groupListenerBound);
-    coordinator.on('dataUpdated', () => this.updateFromCoordinator());
+    coordinator.on('dataUpdated', this.dataUpdatedBound);
 
     this.updateFromCoordinator();
   }
@@ -36,6 +38,9 @@ module.exports = class GroupDevice extends AjaxBaseDevice {
     const coordinator = this.getCoordinator();
     if (coordinator && this.groupListenerBound) {
       coordinator.removeListener('groupStateChange', this.groupListenerBound);
+    }
+    if (coordinator && this.dataUpdatedBound) {
+      coordinator.removeListener('dataUpdated', this.dataUpdatedBound);
     }
   }
 

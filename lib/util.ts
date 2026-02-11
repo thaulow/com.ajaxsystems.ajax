@@ -98,27 +98,6 @@ export function armingStateToHomey(state: ArmingState | string): string {
 }
 
 /**
- * Determine if an Ajax device is currently triggered/alarming.
- */
-export function isDeviceTriggered(device: AjaxDevice): boolean {
-  const model = device.model || {};
-  const state = (model.state || '').toUpperCase();
-  if (['ACTIVE', 'ALARM', 'TRIGGERED'].includes(state)) return true;
-
-  // Door sensors
-  if (model.reedClosed === false) return true;
-
-  // Smoke detectors
-  if (model.smokeAlarmDetected || model.temperatureAlarmDetected ||
-      model.coAlarmDetected || model.highTemperatureDiffDetected) return true;
-
-  // Water sensors
-  if (model.leakDetected) return true;
-
-  return false;
-}
-
-/**
  * Extract motion state from a device model.
  */
 export function isMotionDetected(device: AjaxDevice): boolean {
@@ -189,8 +168,9 @@ export function isGlassBreakDetected(device: AjaxDevice): boolean {
  */
 export function isSwitchOn(device: AjaxDevice): boolean {
   const model = device.model || {};
-  const switchState = model.switchState || model.state || '';
-  return switchState.toUpperCase() === 'ON' || switchState === true;
+  const switchState = model.switchState ?? model.state ?? '';
+  if (typeof switchState === 'boolean') return switchState;
+  return String(switchState).toUpperCase() === 'ON';
 }
 
 /**
@@ -202,16 +182,3 @@ export function isTampered(device: AjaxDevice): boolean {
   return model.tamperState === 'OPEN' || model.tampered === true;
 }
 
-/**
- * Sleep utility for delays.
- */
-export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Clamp a number between min and max.
- */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}

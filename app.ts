@@ -222,9 +222,15 @@ module.exports = class AjaxApp extends Homey.App {
   }
 
   async initializeClients(credentials: AuthCredentials): Promise<void> {
-    this.destroyClients();
+    // Stop real-time event clients (SQS, SSE) — they'll be recreated below
+    this.destroyRealtimeClients();
 
-    // Create API client
+    // Destroy old API client
+    if (this.api) {
+      this.api.destroy();
+    }
+
+    // Create new API client
     this.api = new AjaxApiClient(
       credentials,
       this.log.bind(this),
@@ -248,29 +254,38 @@ module.exports = class AjaxApp extends Homey.App {
     // Create event handler
     this.eventHandler = new AjaxEventHandler(this.log.bind(this), this.error.bind(this));
 
-    // Create coordinator
-    this.coordinator = new AjaxCoordinator(
-      this.api,
-      this.homey,
-      this.getPollingConfig(),
-      this.log.bind(this),
-      this.error.bind(this),
-    );
+    if (this.coordinator) {
+      // Reuse existing coordinator — preserves device listeners
+      this.coordinator.stop();
+      this.coordinator.updateApi(this.api);
+      this.coordinator.updatePollingConfig(this.getPollingConfig());
+    } else {
+      // First time: create coordinator and register app-level listeners.
+      // These listeners reference this.api / this.sseClient as properties,
+      // so they always resolve to the current instances after a swap.
+      this.coordinator = new AjaxCoordinator(
+        this.api,
+        this.homey,
+        this.getPollingConfig(),
+        this.log.bind(this),
+        this.error.bind(this),
+      );
 
-    // Save session on updates and keep SSE token in sync
-    this.coordinator.on('dataUpdated', () => {
-      const session = this.api.getSession();
-      if (session) {
-        this.homey.settings.set('session', session);
-        if (this.sseClient && session.sessionToken) {
-          this.sseClient.updateToken(session.sessionToken);
+      // Save session on updates and keep SSE token in sync
+      this.coordinator.on('dataUpdated', () => {
+        const session = this.api.getSession();
+        if (session) {
+          this.homey.settings.set('session', session);
+          if (this.sseClient && session.sessionToken) {
+            this.sseClient.updateToken(session.sessionToken);
+          }
         }
-      }
-    });
+      });
 
-    this.coordinator.on('authError', () => {
-      this.error('Authentication error - credentials may need updating');
-    });
+      this.coordinator.on('authError', () => {
+        this.error('Authentication error - credentials may need updating');
+      });
+    }
 
     // Start coordinator
     this.coordinator.start();
@@ -347,11 +362,11 @@ module.exports = class AjaxApp extends Homey.App {
     }
   }
 
-  private destroyClients(): void {
-    if (this.coordinator) {
-      this.coordinator.stop();
-      this.coordinator.removeAllListeners();
-    }
+  /**
+   * Stop and destroy real-time event clients (SQS, SSE).
+   * Does NOT touch the coordinator or API — those are reused across reinitializes.
+   */
+  private destroyRealtimeClients(): void {
     if (this.sqsClient) {
       this.sqsClient.stop();
       this.sqsClient.removeAllListeners();
@@ -362,6 +377,18 @@ module.exports = class AjaxApp extends Homey.App {
       this.sseClient.removeAllListeners();
       this.sseClient = null;
     }
+  }
+
+  /**
+   * Full teardown of all clients (API, coordinator, SQS, SSE).
+   * Used only on app shutdown or when credentials are completely removed.
+   */
+  private destroyClients(): void {
+    if (this.coordinator) {
+      this.coordinator.stop();
+      this.coordinator.removeAllListeners();
+    }
+    this.destroyRealtimeClients();
     if (this.api) {
       this.api.destroy();
     }
