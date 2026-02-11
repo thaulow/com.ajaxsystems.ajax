@@ -34,7 +34,7 @@ export interface SiaAlarmEvent {
         'power_trouble' | 'power_restore' |
         'device_lost' | 'device_restore' |
         'bypass' | 'unbypass' |
-        'test' | 'heartbeat' |
+        'test' |
         'panic' | 'duress' | 'system' | 'unknown';
   /** More specific alarm category */
   category?: string;
@@ -418,7 +418,9 @@ export class SiaServer extends EventEmitter {
     }
     // 4. Arming - fine-grained routing
     else if (event.category === 'arming') {
-      if (event.code === '455') {
+      if (event.code === '456') {
+        alarmEvent.type = 'partial_arm';
+      } else if (event.code === '455') {
         alarmEvent.type = 'arming_failed';
       } else if (event.code === '401' || event.code === '409') {
         alarmEvent.type = 'armed_with_faults';

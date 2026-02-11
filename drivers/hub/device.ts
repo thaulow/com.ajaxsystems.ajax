@@ -19,23 +19,27 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   private siaDisconnectedBound: ((address: string) => void) | null = null;
   private siaServerReadyBound: ((server: any) => void) | null = null;
   private siaHeartbeatTimer: any = null;
+  private siaServerRef: any = null;
 
   async onInit(): Promise<void> {
     this.log('Hub device init:', this.getName());
 
-    // Migrate capabilities for existing devices (added in v1.0.11)
-    const requiredCaps = [
-      'alarm_generic', 'alarm_fire', 'alarm_water', 'alarm_co',
-      'alarm_battery', 'ajax_ac_power', 'ajax_device_lost',
-      'ajax_rf_interference', 'ajax_last_event',
-    ];
-    for (const cap of requiredCaps) {
-      if (!this.hasCapability(cap)) {
-        await this.addCapability(cap).catch(this.error);
+    const connectionMode = this.getStoreValue('connectionMode');
+
+    // Migrate capabilities for existing SIA devices (added in v1.0.11)
+    // Only SIA mode uses these sensor capabilities; API mode has its own set.
+    if (connectionMode === 'sia') {
+      const requiredCaps = [
+        'alarm_generic', 'alarm_fire', 'alarm_water', 'alarm_co',
+        'alarm_battery', 'ajax_ac_power', 'ajax_device_lost',
+        'ajax_rf_interference', 'ajax_last_event',
+      ];
+      for (const cap of requiredCaps) {
+        if (!this.hasCapability(cap)) {
+          await this.addCapability(cap).catch(this.error);
+        }
       }
     }
-
-    const connectionMode = this.getStoreValue('connectionMode');
 
     if (connectionMode === 'sia') {
       await this.initSiaMode();
@@ -128,6 +132,8 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   private subscribeSiaEvents(siaServer: any): void {
     this.cleanupSiaListeners();
 
+    this.siaServerRef = siaServer;
+
     const accountId = this.getStoreValue('siaAccountId');
 
     // Normalize account ID for lenient comparison (strip leading zeros)
@@ -175,6 +181,17 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       this.homey.clearTimeout(this.siaHeartbeatTimer);
       this.siaHeartbeatTimer = null;
     }
+
+    // Actually remove listeners from the SIA server EventEmitter
+    const server = this.siaServerRef;
+    if (server) {
+      if (this.siaEventBound) server.removeListener('event', this.siaEventBound);
+      if (this.siaHeartbeatBound) server.removeListener('heartbeat', this.siaHeartbeatBound);
+      if (this.siaConnectedBound) server.removeListener('connected', this.siaConnectedBound);
+      if (this.siaDisconnectedBound) server.removeListener('disconnected', this.siaDisconnectedBound);
+      this.siaServerRef = null;
+    }
+
     this.siaEventBound = null;
     this.siaHeartbeatBound = null;
     this.siaConnectedBound = null;
