@@ -1485,6 +1485,47 @@
     },
     {
       "name": {
+        "en": "Ajax KeyPad"
+      },
+      "class": "other",
+      "capabilities": [
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/keypad/assets/images/small.png",
+        "large": "/drivers/keypad/assets/images/large.png",
+        "xlarge": "/drivers/keypad/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "keypad"
+    },
+    {
+      "name": {
         "en": "Ajax Motion Sensor"
       },
       "class": "sensor",
@@ -1525,6 +1566,47 @@
         }
       ],
       "id": "motion-sensor"
+    },
+    {
+      "name": {
+        "en": "Ajax Range Extender"
+      },
+      "class": "other",
+      "capabilities": [
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/range-extender/assets/images/small.png",
+        "large": "/drivers/range-extender/assets/images/large.png",
+        "xlarge": "/drivers/range-extender/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "range-extender"
     },
     {
       "name": {
@@ -1657,6 +1739,48 @@
         }
       ],
       "id": "smoke-detector"
+    },
+    {
+      "name": {
+        "en": "Ajax Transmitter"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "alarm_contact",
+        "alarm_tamper",
+        "measure_battery",
+        "ajax_signal_strength"
+      ],
+      "energy": {
+        "batteries": [
+          "INTERNAL"
+        ]
+      },
+      "images": {
+        "small": "/drivers/transmitter/assets/images/small.png",
+        "large": "/drivers/transmitter/assets/images/large.png",
+        "xlarge": "/drivers/transmitter/assets/images/xlarge.png"
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "transmitter"
     },
     {
       "name": {
