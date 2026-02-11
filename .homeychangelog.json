@@ -64,5 +64,8 @@
   },
   "1.0.22": {
     "en": "Added capabilities"
+  },
+  "1.0.23": {
+    "en": "Fix stale sensor and backoff"
   }
 }
