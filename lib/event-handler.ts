@@ -79,6 +79,9 @@ export class AjaxEventHandler {
         this.handleLifecycleEvent(event, coordinator);
       }
 
+      // Apply device state from event code (works regardless of arming state)
+      this.applyEventCodeState(event, coordinator);
+
       // Always emit apiAlarmEvent for flow card triggers in API mode
       const apiAlarmEvent = this.buildApiAlarmEvent(event);
       coordinator.emit('apiAlarmEvent', apiAlarmEvent);
@@ -157,6 +160,7 @@ export class AjaxEventHandler {
       case 'BURGLARY_ALARM':
         modelUpdate.state = 'ALARM';
         modelUpdate.motionDetected = true;
+        modelUpdate.reedClosed = false;
         break;
       case 'FIRE_ALARM':
         modelUpdate.smokeAlarmDetected = true;
@@ -239,6 +243,57 @@ export class AjaxEventHandler {
     if (connectionInfo) {
       const online = connectionInfo.hubConnectionStatus === 'ONLINE';
       coordinator.updateHubState(hubId, { online } as any, 'sqs');
+    }
+  }
+
+  // ============================================================
+  // Event-code-based state updates (works regardless of arming state)
+  // ============================================================
+
+  /** Map of event codes to partial model updates for immediate device state. */
+  private static readonly EVENT_CODE_STATE: Record<string, Record<string, any>> = {
+    // DoorProtect
+    'M_01_20': { reedClosed: false },
+    'M_01_21': { reedClosed: true },
+    'M_01_22': { extraContactClosed: false },
+    'M_01_23': { extraContactClosed: true },
+    // DoorProtect Plus
+    'M_0F_20': { reedClosed: false },
+    'M_0F_21': { reedClosed: true },
+    'M_0F_22': { extraContactClosed: false },
+    'M_0F_23': { extraContactClosed: true },
+    // LeakProtect
+    'M_05_20': { leakDetected: true },
+    'M_05_21': { leakDetected: false },
+    // GlassProtect
+    'M_04_20': { glassBreak: true },
+    // FireProtect
+    'M_03_20': { smokeAlarmDetected: true },
+    'M_03_21': { smokeAlarmDetected: false },
+    'M_03_22': { temperatureAlarmDetected: true },
+    'M_03_23': { temperatureAlarmDetected: false },
+    'M_03_2A': { highTemperatureDiffDetected: true },
+    'M_03_2B': { highTemperatureDiffDetected: false },
+    // FireProtect Plus
+    'M_09_20': { smokeAlarmDetected: true },
+    'M_09_21': { smokeAlarmDetected: false },
+    'M_09_22': { temperatureAlarmDetected: true },
+    'M_09_23': { temperatureAlarmDetected: false },
+    'M_09_2A': { highTemperatureDiffDetected: true },
+    'M_09_2B': { highTemperatureDiffDetected: false },
+    'M_09_30': { coAlarmDetected: true },
+    'M_09_31': { coAlarmDetected: false },
+  };
+
+  private applyEventCodeState(event: IntegrationEvent, coordinator: AjaxCoordinator): void {
+    const eventCode = (event.event.eventCode || '').toUpperCase();
+    const deviceId = event.event.sourceObjectId;
+    const hubId = event.event.hubId;
+    if (!eventCode || !deviceId) return;
+
+    const modelUpdate = AjaxEventHandler.EVENT_CODE_STATE[eventCode];
+    if (modelUpdate) {
+      coordinator.updateDeviceState(hubId, deviceId, { model: { ...modelUpdate } }, 'sse');
     }
   }
 
