@@ -11,7 +11,8 @@
     "ajax_gsm_signal",
     "ajax_wifi_signal",
     "ajax_connection_state",
-    "ajax_firmware_version"
+    "ajax_firmware_version",
+    "ajax_firmware_update"
   ],
   "energy": { "batteries": ["INTERNAL"] },
   "capabilitiesOptions": {

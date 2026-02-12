@@ -619,6 +619,35 @@ export class AjaxApiClient {
   }
 
   // ============================================================
+  // Video Edge (Camera) Endpoints
+  // ============================================================
+
+  /**
+   * List all video edge devices (cameras, NVRs) for a hub.
+   */
+  async getVideoEdges(hubId: string): Promise<any[]> {
+    const basePath = this.getBasePath();
+    const data = await this.request('GET', `${basePath}/hubs/${hubId}/devices/video-edges`);
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
+   * Get detailed info about a specific video edge device.
+   */
+  async getVideoEdge(hubId: string, videoEdgeId: string): Promise<any> {
+    const basePath = this.getBasePath();
+    return this.request('GET', `${basePath}/hubs/${hubId}/devices/video-edges/${videoEdgeId}`);
+  }
+
+  /**
+   * Get ONVIF settings for a video edge.
+   */
+  async getVideoEdgeOnvif(hubId: string, videoEdgeId: string): Promise<any> {
+    const basePath = this.getBasePath();
+    return this.request('GET', `${basePath}/hubs/${hubId}/devices/video-edges/${videoEdgeId}/onvif`);
+  }
+
+  // ============================================================
   // Log Endpoints
   // ============================================================
 

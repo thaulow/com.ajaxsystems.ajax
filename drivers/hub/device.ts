@@ -513,11 +513,11 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   // ============================================================
 
   private async initApiMode(): Promise<void> {
-    // Migrate: add alarm sensor capabilities for API mode event reporting
+    // Migrate: add alarm sensor and firmware capabilities for API mode
     const alarmCaps = [
       'alarm_generic', 'alarm_fire', 'alarm_water', 'alarm_co',
       'alarm_battery', 'ajax_ac_power', 'ajax_device_lost',
-      'ajax_rf_interference', 'ajax_last_event',
+      'ajax_rf_interference', 'ajax_last_event', 'ajax_firmware_update',
     ];
     for (const cap of alarmCaps) {
       if (!this.hasCapability(cap)) {
@@ -784,6 +784,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
     await this.safeSetCapability('ajax_wifi_signal', signalLevelToPercent(hub.wifi?.signalLevel));
     await this.safeSetCapability('ajax_connection_state', hub.online);
     await this.safeSetCapability('ajax_firmware_version', hub.firmware?.version || 'Unknown');
+    await this.safeSetCapability('ajax_firmware_update', hub.firmware?.newVersionAvailable ?? false);
 
     // Update power/battery from hub data
     await this.safeSetCapability('ajax_ac_power', hub.externallyPowered);

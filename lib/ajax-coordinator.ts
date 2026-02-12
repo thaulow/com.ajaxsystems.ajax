@@ -16,10 +16,11 @@ import {
   PollingConfig,
   AjaxApiError,
   AjaxAuthError,
+  CONTACT_SENSOR_TYPES,
 } from './types';
 import { parseArmingState } from './util';
 
-const DEFAULT_ARMED_INTERVAL = 10;
+const DEFAULT_ARMED_INTERVAL = 60;
 const DEFAULT_DISARMED_INTERVAL = 30;
 const MAX_CONSECUTIVE_ERRORS = 5;
 const BACKOFF_BASE_MS = 2000;
@@ -27,8 +28,10 @@ const BACKOFF_MAX_MS = 60_000;
 const STATE_PROTECTION_SSE_MS = 5_000;
 const STATE_PROTECTION_SQS_MS = 15_000;
 const STALE_DATA_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
-const FULL_POLL_INTERVAL = 10; // Every Nth poll fetches rooms, groups, hub detail
-const MOTION_CLEAR_DELAY_MS = 60_000; // Auto-clear motion detection after 60 seconds
+const METADATA_REFRESH_INTERVAL_MS = 3600 * 1000; // Full metadata refresh every hour
+const MOTION_CLEAR_DELAY_MS = 30_000; // Auto-clear motion detection after 30 seconds (foXaCe uses 30s)
+const DOOR_FAST_POLL_INTERVAL_MS = 3_000; // Per-device fast poll: every 3 seconds
+const DOOR_FAST_POLL_MAX_MS = 120_000; // Per-device fast poll: stop after 2 minutes
 
 export class AjaxCoordinator extends EventEmitter {
 
@@ -40,7 +43,7 @@ export class AjaxCoordinator extends EventEmitter {
   private pollingConfig: PollingConfig;
   private pollTimer: NodeJS.Timeout | null = null;
   private running: boolean = false;
-  private pollCount: number = 0;
+  private lastMetadataRefresh: number = 0;
 
   // Current data
   private data: CoordinatorData = {
@@ -59,6 +62,13 @@ export class AjaxCoordinator extends EventEmitter {
 
   // Bypass proxy cache on next poll (set after SSE/SQS events for fresh data)
   private bypassCacheNextPoll: boolean = false;
+
+  // Debounced refresh: 0.5s cooldown to batch rapid SSE events into a single poll
+  private refreshDebounceTimer: NodeJS.Timeout | null = null;
+  private static readonly REFRESH_DEBOUNCE_MS = 500;
+
+  // Per-device fast poll tasks for door sensors (deviceId → timer handle)
+  private doorFastPollTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(
     api: AjaxApiClient,
@@ -103,22 +113,37 @@ export class AjaxCoordinator extends EventEmitter {
       this.homey.clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
+    if (this.refreshDebounceTimer) {
+      this.homey.clearTimeout(this.refreshDebounceTimer);
+      this.refreshDebounceTimer = null;
+    }
     for (const timer of this.motionClearTimers.values()) {
       this.homey.clearTimeout(timer);
     }
     this.motionClearTimers.clear();
+    for (const timer of this.doorFastPollTimers.values()) {
+      this.homey.clearTimeout(timer);
+    }
+    this.doorFastPollTimers.clear();
     this.log('Coordinator stopped');
   }
 
   /**
-   * Force an immediate poll (e.g., after receiving a real-time event).
+   * Request a refresh poll (e.g., after receiving a real-time event).
+   * Debounced with 0.5s cooldown so rapid SSE events are batched into one poll.
    */
   async refresh(): Promise<void> {
-    if (this.pollTimer) {
-      this.homey.clearTimeout(this.pollTimer);
-      this.pollTimer = null;
+    if (this.refreshDebounceTimer) {
+      this.homey.clearTimeout(this.refreshDebounceTimer);
     }
-    await this.poll();
+    this.refreshDebounceTimer = this.homey.setTimeout(() => {
+      this.refreshDebounceTimer = null;
+      if (this.pollTimer) {
+        this.homey.clearTimeout(this.pollTimer);
+        this.pollTimer = null;
+      }
+      this.poll();
+    }, AjaxCoordinator.REFRESH_DEBOUNCE_MS);
   }
 
   // ============================================================
@@ -220,6 +245,69 @@ export class AjaxCoordinator extends EventEmitter {
   }
 
   // ============================================================
+  // Per-Device Door Sensor Fast Poll
+  // ============================================================
+
+  /**
+   * Start fast-polling a specific door sensor after it opens.
+   * Polls every 3s for up to 2 minutes, stopping early when door closes.
+   * Disabled in proxy mode to reduce shared proxy load.
+   */
+  private startDoorFastPoll(hubId: string, deviceId: string): void {
+    if (this.api.isProxyMode()) return;
+
+    // Cancel any existing fast poll for this device
+    this.stopDoorFastPoll(deviceId);
+
+    const startTime = Date.now();
+    const tick = async () => {
+      if (Date.now() - startTime > DOOR_FAST_POLL_MAX_MS) {
+        this.doorFastPollTimers.delete(deviceId);
+        return;
+      }
+
+      try {
+        const freshDevice = await this.api.getDevice(hubId, deviceId);
+        const hubData = this.data.hubs.get(hubId);
+        const device = hubData?.devices.get(deviceId);
+        if (device && !this.isProtected(deviceId)) {
+          const changed = this.hasDeviceChanged(device, freshDevice);
+          hubData!.devices.set(deviceId, freshDevice);
+          if (changed) {
+            this.emit('deviceStateChange', { hubId, deviceId, device: freshDevice });
+          }
+        }
+
+        // Stop if door closed
+        if (freshDevice.model?.reedClosed !== false) {
+          this.doorFastPollTimers.delete(deviceId);
+          return;
+        }
+      } catch (err) {
+        this.error('Door fast poll error:', (err as Error).message);
+      }
+
+      // Schedule next tick
+      if (this.running && this.doorFastPollTimers.has(deviceId)) {
+        const timer = this.homey.setTimeout(tick, DOOR_FAST_POLL_INTERVAL_MS);
+        this.doorFastPollTimers.set(deviceId, timer);
+      }
+    };
+
+    // Start first tick after the interval (the event itself already set the state)
+    const timer = this.homey.setTimeout(tick, DOOR_FAST_POLL_INTERVAL_MS);
+    this.doorFastPollTimers.set(deviceId, timer);
+  }
+
+  private stopDoorFastPoll(deviceId: string): void {
+    const existing = this.doorFastPollTimers.get(deviceId);
+    if (existing) {
+      this.homey.clearTimeout(existing);
+      this.doorFastPollTimers.delete(deviceId);
+    }
+  }
+
+  // ============================================================
   // Polling
   // ============================================================
 
@@ -264,7 +352,6 @@ export class AjaxCoordinator extends EventEmitter {
     if (!this.running) return;
 
     try {
-      this.pollCount++;
       await this.fetchAllData();
       this.consecutiveErrors = 0;
     } catch (err) {
@@ -320,9 +407,13 @@ export class AjaxCoordinator extends EventEmitter {
   private async fetchAllData(): Promise<void> {
     const hubs = await this.api.getHubs();
 
-    // Full poll (rooms, groups, hub detail) on first poll and every Nth after.
+    // Full metadata refresh (rooms, groups, hub detail) on first poll and hourly after.
     // Lean polls only fetch hubs + devices to minimize API requests.
-    const isFullPoll = this.pollCount <= 1 || this.pollCount % FULL_POLL_INTERVAL === 0;
+    const now = Date.now();
+    const isFullPoll = this.lastMetadataRefresh === 0 || (now - this.lastMetadataRefresh) >= METADATA_REFRESH_INTERVAL_MS;
+    if (isFullPoll) {
+      this.lastMetadataRefresh = now;
+    }
 
     // After SSE/SQS events, bypass proxy cache to get confirmed fresh data
     const useNoCache = this.bypassCacheNextPoll;
@@ -336,12 +427,31 @@ export class AjaxCoordinator extends EventEmitter {
 
       // Fetch devices always; rooms, groups, hub detail only on full polls
       // Use no-cache variants after real-time events to bypass proxy cache
-      const [hubDetail, devices, rooms, groups] = await Promise.all([
-        needsFull && this.api.isProxyMode() ? (useNoCache ? this.api.getHubFresh(hubId) : this.api.getHub(hubId)).catch(() => null) : Promise.resolve(null),
-        useNoCache ? this.api.getDevicesFresh(hubId) : this.api.getDevices(hubId),
-        needsFull ? this.api.getRooms(hubId) : Promise.resolve(null),
-        needsFull && hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve(null),
-      ]);
+      // In proxy mode, fetch sequentially to avoid rate limit bursts (foXaCe design)
+      let hubDetail: AjaxHub | null = null;
+      let devices: AjaxDevice[];
+      let rooms: AjaxRoom[] | null = null;
+      let groups: AjaxGroup[] | null = null;
+
+      if (this.api.isProxyMode()) {
+        if (needsFull) {
+          hubDetail = await (useNoCache ? this.api.getHubFresh(hubId) : this.api.getHub(hubId)).catch(() => null);
+        }
+        devices = await (useNoCache ? this.api.getDevicesFresh(hubId) : this.api.getDevices(hubId));
+        if (needsFull) {
+          rooms = await this.api.getRooms(hubId);
+        }
+        if (needsFull && hub.groupsEnabled) {
+          groups = await this.api.getGroups(hubId);
+        }
+      } else {
+        [hubDetail, devices, rooms, groups] = await Promise.all([
+          needsFull ? this.api.getHub(hubId).catch(() => null) : Promise.resolve(null),
+          this.api.getDevices(hubId),
+          needsFull ? this.api.getRooms(hubId) : Promise.resolve(null),
+          needsFull && hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve(null),
+        ]);
+      }
 
       // Merge detailed hub data over the list data (proxy mode)
       if (hubDetail) {
@@ -497,6 +607,14 @@ export class AjaxCoordinator extends EventEmitter {
     // Auto-clear motion detection after timeout (motion sensors don't send "clear" events)
     if (partialDevice.model?.motionDetected === true) {
       this.scheduleMotionClear(hubId, deviceId);
+    }
+
+    // Per-device fast poll: when a contact sensor opens, poll it every 3s to quickly detect closure
+    if (partialDevice.model?.reedClosed === false) {
+      const deviceType = device.deviceType || '';
+      if ((CONTACT_SENSOR_TYPES as readonly string[]).includes(deviceType)) {
+        this.startDoorFastPoll(hubId, deviceId);
+      }
     }
   }
 

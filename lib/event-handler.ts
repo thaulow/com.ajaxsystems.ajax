@@ -318,15 +318,62 @@ export class AjaxEventHandler {
     'M_11_22': { extraContactClosed: false },
   };
 
+  /** Map of SSE event tags to partial model updates (foXaCe-style human-readable tags). */
+  private static readonly EVENT_TAG_STATE: Record<string, Record<string, any>> = {
+    // Door events
+    'dooropened': { reedClosed: false },
+    'doorclosed': { reedClosed: true },
+    'doorrestored': { reedClosed: true },
+    'doornormal': { reedClosed: true },
+    'extcontactopened': { extraContactClosed: false },
+    'extcontactclosed': { extraContactClosed: true },
+    // Motion events
+    'motiondetected': { motionDetected: true },
+    'nomotiondetected': { motionDetected: false },
+    // Fire/smoke events
+    'smokealarm': { smokeAlarmDetected: true },
+    'smokerestored': { smokeAlarmDetected: false },
+    'temperaturealarm': { temperatureAlarmDetected: true },
+    'temperaturerestored': { temperatureAlarmDetected: false },
+    'coalarm': { coAlarmDetected: true },
+    'corestored': { coAlarmDetected: false },
+    // Leak events
+    'leakdetected': { leakDetected: true },
+    'leakrestored': { leakDetected: false },
+    // Glass break
+    'glassbreak': { glassBreak: true },
+    'glassbreakrestored': { glassBreak: false },
+    // Tamper
+    'tamperopen': { tamperState: 'OPEN' },
+    'tamperclosed': { tamperState: 'CLOSED' },
+    'tamperrestored': { tamperState: 'CLOSED' },
+    // Switch events
+    'switchon': { switchState: 'ON' },
+    'switchoff': { switchState: 'OFF' },
+  };
+
   private applyEventCodeState(event: IntegrationEvent, coordinator: AjaxCoordinator): void {
     const eventCode = (event.event.eventCode || '').toUpperCase();
     const deviceId = event.event.sourceObjectId;
     const hubId = event.event.hubId;
-    if (!eventCode || !deviceId) return;
+    if (!deviceId) return;
 
-    const modelUpdate = AjaxEventHandler.EVENT_CODE_STATE[eventCode];
-    if (modelUpdate) {
-      coordinator.updateDeviceState(hubId, deviceId, { model: { ...modelUpdate } }, 'sse');
+    // Try event code first (more precise)
+    if (eventCode) {
+      const modelUpdate = AjaxEventHandler.EVENT_CODE_STATE[eventCode];
+      if (modelUpdate) {
+        coordinator.updateDeviceState(hubId, deviceId, { model: { ...modelUpdate } }, 'sse');
+        return;
+      }
+    }
+
+    // Fallback to event tag (human-readable SSE tags like "dooropened", "motiondetected")
+    const eventTag = ((event.event as any).eventTag || '').toLowerCase();
+    if (eventTag) {
+      const tagUpdate = AjaxEventHandler.EVENT_TAG_STATE[eventTag];
+      if (tagUpdate) {
+        coordinator.updateDeviceState(hubId, deviceId, { model: { ...tagUpdate } }, 'sse');
+      }
     }
   }
 

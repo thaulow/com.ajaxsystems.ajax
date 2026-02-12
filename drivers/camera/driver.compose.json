@@ -1,0 +1,51 @@
+{
+  "name": {
+    "en": "Ajax Camera"
+  },
+  "class": "camera",
+  "capabilities": [
+    "ajax_connection_state",
+    "ajax_firmware_version",
+    "ajax_firmware_update"
+  ],
+  "platforms": ["local"],
+  "connectivity": ["lan"],
+  "images": {
+    "small": "/drivers/camera/assets/images/small.png",
+    "large": "/drivers/camera/assets/images/large.png",
+    "xlarge": "/drivers/camera/assets/images/xlarge.png"
+  },
+  "pair": [
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "next": "add_devices" }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ],
+  "settings": [
+    {
+      "type": "group",
+      "label": { "en": "RTSP Settings" },
+      "children": [
+        {
+          "id": "rtsp_username",
+          "type": "text",
+          "label": { "en": "RTSP Username" },
+          "value": "",
+          "hint": { "en": "Username for RTSP/ONVIF access (configured in Ajax app)" }
+        },
+        {
+          "id": "rtsp_password",
+          "type": "password",
+          "label": { "en": "RTSP Password" },
+          "value": "",
+          "hint": { "en": "Password for RTSP/ONVIF access (configured in Ajax app)" }
+        }
+      ]
+    }
+  ]
+}
