@@ -44,6 +44,7 @@ export class AjaxApiClient {
   // Proxy suggested polling interval (from X-Suggested-Interval header, in seconds)
   suggestedInterval: number = 0;
 
+
   constructor(credentials: AuthCredentials, log: (...args: any[]) => void, error: (...args: any[]) => void) {
     this.credentials = credentials;
     this.log = log;
@@ -386,15 +387,40 @@ export class AjaxApiClient {
   // ============================================================
 
   private normalizeHub(raw: Record<string, any>): AjaxHub {
-    // Build GSM object from flat fields if not already structured
-    const gsm = raw.gsm || (raw.gsmSignalLevel || raw.gsm_signal_level ? {
-      signalLevel: raw.gsmSignalLevel || raw.gsm_signal_level,
-    } : undefined);
+    // Resolve firmware from nested object or flat fields
+    const rawFw = raw.firmware || {};
+    const firmware = {
+      version: rawFw.version || rawFw.currentVersion
+        || raw.firmwareVersion || raw.firmware_version || undefined,
+      newVersionAvailable: rawFw.newVersionAvailable ?? raw.newVersionAvailable ?? false,
+      latestAvailableVersion: rawFw.latestAvailableVersion || undefined,
+    };
 
-    // Build WiFi object from flat fields if not already structured
-    const wifi = raw.wifi || (raw.wifiSignalLevel || raw.wifi_signal_level ? {
-      signalLevel: raw.wifiSignalLevel || raw.wifi_signal_level,
-    } : undefined);
+    // Resolve GSM from nested object or flat fields
+    const rawGsm = raw.gsm || {};
+    const gsmSignal = rawGsm.signalLevel || rawGsm.signal_level
+      || raw.gsmSignalLevel || raw.gsm_signal_level;
+    const gsm = gsmSignal !== undefined ? {
+      signalLevel: gsmSignal,
+      networkStatus: rawGsm.networkStatus,
+    } : undefined;
+
+    // Resolve WiFi from nested object or flat fields
+    const rawWifi = raw.wifi || {};
+    const wifiSignal = rawWifi.signalLevel || rawWifi.signal_level
+      || raw.wifiSignalLevel || raw.wifi_signal_level;
+    const wifi = wifiSignal !== undefined ? {
+      signalLevel: wifiSignal,
+      ssid: rawWifi.ssid,
+    } : undefined;
+
+    // Resolve battery from nested object or flat fields
+    const rawBat = raw.battery || {};
+    const battery = {
+      chargeLevelPercentage: rawBat.chargeLevelPercentage
+        ?? raw.batteryChargeLevelPercentage ?? raw.batteryPercents ?? 100,
+      state: rawBat.state || raw.batteryState || 'CHARGED',
+    };
 
     return {
       ...raw,
@@ -404,16 +430,10 @@ export class AjaxApiClient {
       state: raw.state || 'DISARMED',
       tampered: raw.tampered ?? false,
       online: raw.online ?? true,
-      externallyPowered: raw.externallyPowered ?? true,
-      groupsEnabled: raw.groupsEnabled ?? false,
-      firmware: raw.firmware || {
-        version: raw.firmwareVersion || raw.firmware_version || 'Unknown',
-        newVersionAvailable: raw.newVersionAvailable ?? false,
-      },
-      battery: raw.battery || {
-        chargeLevelPercentage: raw.batteryChargeLevelPercentage ?? raw.batteryPercents ?? 100,
-        state: raw.batteryState || 'CHARGED',
-      },
+      externallyPowered: raw.externallyPowered ?? raw.externally_powered ?? true,
+      groupsEnabled: raw.groupsEnabled ?? raw.groups_enabled ?? false,
+      firmware,
+      battery,
       gsm,
       wifi,
     } as AjaxHub;

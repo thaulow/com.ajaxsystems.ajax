@@ -29,15 +29,28 @@ export function hashPassword(password: string): string {
 }
 
 /**
- * Convert Ajax signal level enum to percentage (0-100).
+ * Convert Ajax signal level to percentage (0-100).
+ * Handles string enums (STRONG/NORMAL/GOOD/WEAK/NONE/NO_SIGNAL) and numeric values.
  */
-export function signalLevelToPercent(level?: SignalLevel | string): number {
-  switch (level) {
+export function signalLevelToPercent(level?: SignalLevel | string | number): number | null {
+  if (level === undefined || level === null) return null;
+
+  // Numeric signal level (some proxy responses return a number 0-3 or 0-100)
+  if (typeof level === 'number') {
+    if (level <= 3) {
+      return Math.round((level / 3) * 100);
+    }
+    return Math.min(100, Math.max(0, level));
+  }
+
+  switch (String(level).toUpperCase()) {
     case 'STRONG': return 100;
+    case 'GOOD': return 80;
     case 'NORMAL': return 66;
     case 'WEAK': return 25;
+    case 'NONE':
     case 'NO_SIGNAL': return 0;
-    default: return 0;
+    default: return null;
   }
 }
 
