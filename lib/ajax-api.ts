@@ -103,7 +103,7 @@ export class AjaxApiClient {
       userRole: userRole || 'USER',
     };
 
-    const response = await this.rawRequest('POST', '/login', body, false);
+    const response = await this.rawRequest('POST', '/login', body, true);
     const data = response as Record<string, any>;
 
     // Proxy returns user_id (snake_case) and may omit sessionToken/refreshToken
