@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960">
+  <!-- TurretCam: dome/hemisphere camera body -->
+  <!-- Base mounting ring (ellipse) -->
+  <ellipse cx="480" cy="750" rx="370" ry="78" fill="none" stroke="#000" stroke-width="52"/>
+  <!-- Dome arch (semicircle) -->
+  <path d="M 110 750 A 370 370 0 0 1 850 750" fill="none" stroke="#000" stroke-width="52"/>
+  <!-- Lens housing outer ring -->
+  <circle cx="480" cy="530" r="196" fill="none" stroke="#000" stroke-width="52"/>
+  <!-- Lens aperture inner ring -->
+  <circle cx="480" cy="530" r="94" fill="none" stroke="#000" stroke-width="44"/>
+</svg>
