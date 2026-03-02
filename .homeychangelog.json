@@ -85,5 +85,8 @@
   },
   "1.0.29": {
     "en": "Bugfix enterprise API"
+  },
+  "1.0.30": {
+    "en": "Added temporarily driver icons while awaiting Athom"
   }
 }
