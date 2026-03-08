@@ -88,5 +88,8 @@
   },
   "1.0.30": {
     "en": "Added temporarily driver icons while awaiting Athom"
+  },
+  "1.0.31": {
+    "en": "bugfix enterprise api and proxy"
   }
 }
