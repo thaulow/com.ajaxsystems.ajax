@@ -430,7 +430,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
   private triggerCard(cardId: string, tokens: Record<string, any>): void {
     this.homey.flow.getTriggerCard(cardId)
-      ?.trigger(this, tokens)
+      ?.trigger(tokens)
       .catch(this.error);
   }
 

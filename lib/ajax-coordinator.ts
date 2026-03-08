@@ -425,7 +425,7 @@ export class AjaxCoordinator extends EventEmitter {
       // First time seeing this hub always needs a full fetch
       const needsFull = isFullPoll || !existingHubData;
 
-      // Fetch devices always; rooms, groups, hub detail only on full polls
+      // Fetch hub detail + devices on every poll; rooms and groups only on full polls
       // Use no-cache variants after real-time events to bypass proxy cache
       // In proxy mode, fetch sequentially to avoid rate limit bursts (foXaCe design)
       let hubDetail: AjaxHub | null = null;
@@ -433,10 +433,11 @@ export class AjaxCoordinator extends EventEmitter {
       let rooms: AjaxRoom[] | null = null;
       let groups: AjaxGroup[] | null = null;
 
+      // Always fetch hub detail — the list endpoint (/hubs) may not include
+      // the current arm state, so we need the individual endpoint (/hubs/{id})
+      // on every poll to reliably detect armed/disarmed changes.
       if (this.api.isProxyMode()) {
-        if (needsFull) {
-          hubDetail = await (useNoCache ? this.api.getHubFresh(hubId) : this.api.getHub(hubId)).catch(() => null);
-        }
+        hubDetail = await (useNoCache ? this.api.getHubFresh(hubId) : this.api.getHub(hubId)).catch(() => null);
         devices = await (useNoCache ? this.api.getDevicesFresh(hubId) : this.api.getDevices(hubId));
         if (needsFull) {
           rooms = await this.api.getRooms(hubId);
@@ -446,7 +447,7 @@ export class AjaxCoordinator extends EventEmitter {
         }
       } else {
         [hubDetail, devices, rooms, groups] = await Promise.all([
-          needsFull ? this.api.getHub(hubId).catch(() => null) : Promise.resolve(null),
+          (useNoCache ? this.api.getHubFresh(hubId) : this.api.getHub(hubId)).catch(() => null),
           this.api.getDevices(hubId),
           needsFull ? this.api.getRooms(hubId) : Promise.resolve(null),
           needsFull && hub.groupsEnabled ? this.api.getGroups(hubId) : Promise.resolve(null),
