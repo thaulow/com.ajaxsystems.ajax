@@ -3,17 +3,15 @@
 import Homey from 'homey';
 import { AjaxApiClient } from './lib/ajax-api';
 import { AjaxCoordinator } from './lib/ajax-coordinator';
-import { AjaxSqsClient } from './lib/sqs-client';
 import { AjaxSseClient } from './lib/sse-client';
 import { AjaxEventHandler } from './lib/event-handler';
 import { SiaServer, SiaServerConfig } from './lib/sia-server';
-import { AuthCredentials, SessionState, SqsConfig, PollingConfig } from './lib/types';
+import { AuthCredentials, SessionState, PollingConfig } from './lib/types';
 
 module.exports = class AjaxApp extends Homey.App {
 
   private api!: AjaxApiClient;
   private coordinator!: AjaxCoordinator;
-  private sqsClient: AjaxSqsClient | null = null;
   private sseClient: AjaxSseClient | null = null;
   private siaServer: SiaServer | null = null;
   private eventHandler!: AjaxEventHandler;
@@ -22,7 +20,7 @@ module.exports = class AjaxApp extends Homey.App {
   async onInit(): Promise<void> {
     this.log('Ajax Systems app initializing...');
 
-    // Start API clients if configured (user or proxy mode)
+    // Start API clients if configured (proxy mode)
     const credentials = this.getCredentials();
     if (credentials) {
       await this.initializeClients(credentials);
@@ -39,8 +37,8 @@ module.exports = class AjaxApp extends Homey.App {
 
     // Listen for settings changes (debounced to handle multiple rapid changes during pairing)
     this.homey.settings.on('set', (key: string) => {
-      if (['auth_mode', 'api_key', 'email', 'password',
-           'proxy_url', 'sqs_enabled',
+      if (['auth_mode', 'email', 'password',
+           'proxy_url',
            'poll_armed', 'poll_disarmed',
            'sia_enabled', 'sia_port', 'sia_account', 'sia_encryption_key'].includes(key)) {
         this.log(`Setting "${key}" changed, scheduling reinitialize...`);
@@ -163,75 +161,32 @@ module.exports = class AjaxApp extends Homey.App {
 
   private getCredentials(): AuthCredentials | null {
     const mode = this.homey.settings.get('auth_mode') as string;
-    const apiKey = this.homey.settings.get('api_key') as string;
+    if (mode !== 'proxy') return null;
 
-    if (!mode || mode === 'sia') return null;
-
-    const credentials: AuthCredentials = {
-      mode: mode as AuthCredentials['mode'],
-      apiKey: apiKey || '',
-    };
-
-    switch (mode) {
-      case 'user':
-        if (!apiKey) return null;
-        credentials.email = this.homey.settings.get('email') as string;
-        credentials.password = this.homey.settings.get('password') as string;
-        credentials.userRole = (this.homey.settings.get('user_role') as string || 'USER') as AuthCredentials['userRole'];
-        if (!credentials.email || !credentials.password) return null;
-        break;
-      case 'proxy':
-        credentials.email = this.homey.settings.get('email') as string;
-        credentials.password = this.homey.settings.get('password') as string;
-        credentials.proxyUrl = this.homey.settings.get('proxy_url') as string;
-        credentials.verifySsl = this.homey.settings.get('verify_ssl') !== false;
-        if (!credentials.email || !credentials.password || !credentials.proxyUrl) return null;
-        break;
-      default:
-        return null;
-    }
-
-    return credentials;
-  }
-
-  private getSqsConfig(): SqsConfig | null {
-    const enabled = this.homey.settings.get('sqs_enabled');
-    if (!enabled) return null;
-
-    const awsAccessKeyId = this.homey.settings.get('sqs_access_key') as string;
-    const awsSecretAccessKey = this.homey.settings.get('sqs_secret_key') as string;
-    const eventsQueueName = this.homey.settings.get('sqs_events_queue') as string;
-    const updatesQueueName = this.homey.settings.get('sqs_updates_queue') as string;
-
-    if (!awsAccessKeyId || !awsSecretAccessKey || !eventsQueueName) return null;
+    const email = this.homey.settings.get('email') as string;
+    const password = this.homey.settings.get('password') as string;
+    const proxyUrl = this.homey.settings.get('proxy_url') as string;
+    if (!email || !password || !proxyUrl) return null;
 
     return {
-      awsAccessKeyId,
-      awsSecretAccessKey,
-      eventsQueueName,
-      updatesQueueName: updatesQueueName || '',
-      region: this.homey.settings.get('sqs_region') as string || 'eu-west-1',
+      mode: 'proxy',
+      apiKey: '',
+      email,
+      password,
+      proxyUrl,
+      verifySsl: this.homey.settings.get('verify_ssl') !== false,
     };
   }
 
   private getPollingConfig(): Partial<PollingConfig> {
-    const mode = this.homey.settings.get('auth_mode') as string;
-    const isProxy = mode === 'proxy';
-
-    // Matches foXaCe reference: 60s armed (real-time events handle updates), 30s disarmed
-    const defaultArmed = 60;
-    const defaultDisarmed = 30;
-
     return {
-      armedIntervalSeconds: Number(this.homey.settings.get('poll_armed')) || defaultArmed,
-      disarmedIntervalSeconds: Number(this.homey.settings.get('poll_disarmed')) || defaultDisarmed,
-      doorSensorFastPoll: !isProxy && !!this.homey.settings.get('door_sensor_fast_poll'),
-      doorSensorIntervalSeconds: Number(this.homey.settings.get('door_sensor_interval')) || 5,
+      armedIntervalSeconds: Number(this.homey.settings.get('poll_armed')) || 60,
+      disarmedIntervalSeconds: Number(this.homey.settings.get('poll_disarmed')) || 30,
     };
   }
 
   async initializeClients(credentials: AuthCredentials): Promise<void> {
-    // Stop real-time event clients (SQS, SSE) — they'll be recreated below
+    // Stop real-time event clients (SSE) — they'll be recreated below
     this.destroyRealtimeClients();
 
     // Destroy old API client
@@ -304,34 +259,10 @@ module.exports = class AjaxApp extends Homey.App {
     // Start coordinator
     this.coordinator.start();
 
-    // Start SQS if configured
-    const sqsConfig = this.getSqsConfig();
-    if (sqsConfig && credentials.mode !== 'proxy') {
-      this.startSqsClient(sqsConfig);
-    }
-
-    // Start SSE if in proxy mode
-    if (credentials.mode === 'proxy') {
-      this.startSseClient();
-    }
+    // Start SSE for real-time events
+    this.startSseClient();
 
     this.log('All clients initialized');
-  }
-
-  private startSqsClient(config: SqsConfig): void {
-    try {
-      this.sqsClient = new AjaxSqsClient(config, this.log.bind(this), this.error.bind(this));
-      this.sqsClient.on('event', (event) => {
-        this.eventHandler.handleEvent(event, this.coordinator);
-      });
-      this.sqsClient.on('update', (update) => {
-        this.eventHandler.handleUpdate(update, this.coordinator);
-      });
-      this.sqsClient.start();
-      this.log('SQS client started');
-    } catch (err) {
-      this.error('Failed to start SQS client:', (err as Error).message);
-    }
   }
 
   private startSseClient(): void {
@@ -377,15 +308,10 @@ module.exports = class AjaxApp extends Homey.App {
   }
 
   /**
-   * Stop and destroy real-time event clients (SQS, SSE).
+   * Stop and destroy real-time event clients (SSE).
    * Does NOT touch the coordinator or API — those are reused across reinitializes.
    */
   private destroyRealtimeClients(): void {
-    if (this.sqsClient) {
-      this.sqsClient.stop();
-      this.sqsClient.removeAllListeners();
-      this.sqsClient = null;
-    }
     if (this.sseClient) {
       this.sseClient.stop();
       this.sseClient.removeAllListeners();

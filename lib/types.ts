@@ -4,13 +4,11 @@
 // Authentication
 // ============================================================
 
-export type AuthMode = 'user' | 'proxy' | 'sia';
-export type UserRole = 'USER' | 'PRO';
+export type AuthMode = 'proxy' | 'sia';
 
 export interface LoginRequest {
   login: string;
   passwordHash: string;
-  userRole: UserRole;
 }
 
 export interface LoginResponse {
@@ -20,25 +18,11 @@ export interface LoginResponse {
   sseUrl?: string; // proxy mode only
 }
 
-export interface RefreshRequest {
-  userId: string;
-  refreshToken: string;
-}
-
-export interface RefreshResponse {
-  sessionToken: string;
-  refreshToken: string;
-  userId: string;
-}
-
 export interface AuthCredentials {
   mode: AuthMode;
   apiKey: string;
-  // User mode
   email?: string;
   password?: string;
-  userRole?: UserRole;
-  // Proxy mode
   proxyUrl?: string;
   verifySsl?: boolean;
 }
@@ -62,26 +46,12 @@ export interface SessionState {
 }
 
 // ============================================================
-// SQS Configuration
-// ============================================================
-
-export interface SqsConfig {
-  awsAccessKeyId: string;
-  awsSecretAccessKey: string;
-  eventsQueueName: string;
-  updatesQueueName: string;
-  region?: string; // default: eu-west-1
-}
-
-// ============================================================
 // Polling Configuration
 // ============================================================
 
 export interface PollingConfig {
-  armedIntervalSeconds: number;   // default: 10
-  disarmedIntervalSeconds: number; // default: 30
-  doorSensorFastPoll: boolean;     // default: false
-  doorSensorIntervalSeconds: number; // default: 5
+  armedIntervalSeconds: number;
+  disarmedIntervalSeconds: number;
 }
 
 // ============================================================

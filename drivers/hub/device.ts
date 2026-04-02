@@ -45,6 +45,9 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     if (connectionMode === 'sia') {
       await this.initSiaMode();
+    } else if (connectionMode === 'both') {
+      await this.initApiMode();
+      await this.initSiaMode();
     } else {
       await this.initApiMode();
     }
@@ -52,16 +55,19 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
   async onUninit(): Promise<void> {
     const connectionMode = this.getStoreValue('connectionMode');
+    const hasSia = connectionMode === 'sia' || connectionMode === 'both';
+    const hasApi = connectionMode === 'api' || connectionMode === 'both';
 
-    if (connectionMode === 'sia') {
+    if (hasSia) {
       this.cleanupSiaListeners();
-      // Remove the app-level siaServerReady listener
       if (this.siaServerReadyBound) {
         const app = this.getApp();
         app?.removeListener?.('siaServerReady', this.siaServerReadyBound);
         this.siaServerReadyBound = null;
       }
-    } else {
+    }
+
+    if (hasApi) {
       const coordinator = this.getCoordinator();
       if (coordinator && this.hubListenerBound) {
         coordinator.removeListener('hubStateChange', this.hubListenerBound);
@@ -83,26 +89,34 @@ module.exports = class HubDevice extends AjaxBaseDevice {
   // ============================================================
 
   private async initSiaMode(): Promise<void> {
-    this.log('Hub device running in SIA mode');
+    const connectionMode = this.getStoreValue('connectionMode');
+    const siaOnly = connectionMode === 'sia';
 
-    // SIA is receive-only (hub → Homey). Make interactive capabilities
-    // read-only so they display as sensors instead of controls.
-    await this.setCapabilityOptions('ajax_night_mode', {
-      uiComponent: 'sensor',
-      setable: false,
-    }).catch(this.error);
+    this.log('Hub device initializing SIA listener');
 
-    await this.setCapabilityOptions('homealarm_state', {
-      setable: false,
-    }).catch(this.error);
+    // In SIA-only mode, mark capabilities as read-only since there's no API to send commands.
+    // In combined (both) mode, API mode already set them as setable — leave them as-is.
+    if (siaOnly) {
+      await this.setCapabilityOptions('ajax_night_mode', {
+        uiComponent: 'sensor',
+        setable: false,
+      }).catch(this.error);
 
-    // Reject any user-initiated changes (SIA is receive-only)
-    this.registerCapabilityListener('homealarm_state', async () => {
-      throw new Error('SIA is receive-only. Use the Ajax app or keypad to arm/disarm.');
-    });
-    this.registerCapabilityListener('ajax_night_mode', async () => {
-      throw new Error('SIA is receive-only. Use the Ajax app or keypad to control night mode.');
-    });
+      await this.setCapabilityOptions('homealarm_state', {
+        setable: false,
+      }).catch(this.error);
+    }
+
+    // In SIA-only mode, reject user commands — SIA is receive-only.
+    // In combined mode, API mode already registered the correct listeners.
+    if (siaOnly) {
+      this.registerCapabilityListener('homealarm_state', async () => {
+        throw new Error('SIA is receive-only. Use the Ajax app or keypad to arm/disarm.');
+      });
+      this.registerCapabilityListener('ajax_night_mode', async () => {
+        throw new Error('SIA is receive-only. Use the Ajax app or keypad to control night mode.');
+      });
+    }
 
     // Set initial state
     await this.safeSetCapability('homealarm_state', 'disarmed');
@@ -219,6 +233,11 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     this.resetSiaHeartbeatTimer();
 
+    // In 'both' mode, SIA provides fast local capability updates only.
+    // Flow card triggers come exclusively from the API (SSE/polling) to avoid
+    // duplicates — SIA doesn't cover all state changes (e.g. disarm when quiet).
+    const siaOnly = this.getStoreValue('connectionMode') !== 'both';
+
     // Resolve zone number to device name if coordinator is available
     const { deviceName, roomName } = this.resolveZone(event.zone);
 
@@ -233,46 +252,46 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         this.safeSetCapability('homealarm_state', 'armed');
         this.safeSetCapability('ajax_night_mode', false);
         this.clearAllAlarms();
-        this.triggerCard('hub_armed', { hub_name: this.getName() });
+        if (siaOnly) this.triggerCard('hub_armed', { hub_name: this.getName() });
         break;
 
       case 'disarm':
         this.safeSetCapability('homealarm_state', 'disarmed');
         this.safeSetCapability('ajax_night_mode', false);
         this.clearAllAlarms();
-        this.triggerCard('hub_disarmed', { hub_name: this.getName() });
+        if (siaOnly) this.triggerCard('hub_disarmed', { hub_name: this.getName() });
         break;
 
       case 'night_arm':
         this.safeSetCapability('ajax_night_mode', true);
-        this.triggerCard('night_mode_armed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('night_mode_armed', { zone: event.zone, description: event.description });
         break;
 
       case 'night_disarm':
         this.safeSetCapability('ajax_night_mode', false);
-        this.triggerCard('night_mode_disarmed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('night_mode_disarmed', { zone: event.zone, description: event.description });
         break;
 
       case 'partial_arm':
         this.safeSetCapability('homealarm_state', 'partially_armed');
-        this.triggerCard('hub_armed', { hub_name: this.getName() });
+        if (siaOnly) this.triggerCard('hub_armed', { hub_name: this.getName() });
         break;
 
       case 'group_arm':
-        this.triggerCard('group_armed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('group_armed', { zone: event.zone, description: event.description });
         break;
 
       case 'group_disarm':
-        this.triggerCard('group_disarmed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('group_disarmed', { zone: event.zone, description: event.description });
         break;
 
       case 'armed_with_faults':
         this.safeSetCapability('homealarm_state', 'armed');
-        this.triggerCard('armed_with_faults', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('armed_with_faults', { zone: event.zone, description: event.description });
         break;
 
       case 'arming_failed':
-        this.triggerCard('arming_failed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('arming_failed', { zone: event.zone, description: event.description });
         break;
 
       // ── Alarms ─────────────────────────────────
@@ -280,17 +299,17 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         this.safeSetCapability('alarm_generic', true);
         if (event.category === 'fire') {
           this.safeSetCapability('alarm_fire', true);
-          this.triggerCard('fire_alarm_triggered', { zone: event.zone, description: event.description });
+          if (siaOnly) this.triggerCard('fire_alarm_triggered', { zone: event.zone, description: event.description });
         } else if (event.category === 'water') {
           this.safeSetCapability('alarm_water', true);
-          this.triggerCard('water_alarm_triggered', { zone: event.zone, description: event.description });
+          if (siaOnly) this.triggerCard('water_alarm_triggered', { zone: event.zone, description: event.description });
         } else if (event.category === 'gas') {
           this.safeSetCapability('alarm_co', true);
-          this.triggerCard('gas_co_alarm', { zone: event.zone, description: event.description });
+          if (siaOnly) this.triggerCard('gas_co_alarm', { zone: event.zone, description: event.description });
         } else if (event.category === 'burglary') {
-          this.triggerCard('burglary_alarm', { zone: event.zone, description: event.description });
+          if (siaOnly) this.triggerCard('burglary_alarm', { zone: event.zone, description: event.description });
         } else if (event.category === 'medical') {
-          this.triggerCard('medical_alarm', { zone: event.zone, description: event.description });
+          if (siaOnly) this.triggerCard('medical_alarm', { zone: event.zone, description: event.description });
         }
         break;
 
@@ -299,7 +318,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         else if (event.category === 'water') this.safeSetCapability('alarm_water', false);
         else if (event.category === 'gas') this.safeSetCapability('alarm_co', false);
         this.checkAndClearGenericAlarm();
-        this.triggerCard('alarm_restored', {
+        if (siaOnly) this.triggerCard('alarm_restored', {
           zone: event.zone,
           alarm_type: event.category || 'unknown',
           description: event.description,
@@ -309,27 +328,27 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       // ── Panic & Duress ─────────────────────────
       case 'panic':
         this.safeSetCapability('alarm_generic', true);
-        this.triggerCard('panic_alarm', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('panic_alarm', { zone: event.zone, description: event.description });
         break;
 
       case 'duress':
         this.safeSetCapability('homealarm_state', 'disarmed');
         this.safeSetCapability('ajax_night_mode', false);
         this.safeSetCapability('alarm_generic', true);
-        this.triggerCard('duress_alarm', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('duress_alarm', { zone: event.zone, description: event.description });
         break;
 
       // ── Tamper ─────────────────────────────────
       case 'tamper':
         this.safeSetCapability('alarm_tamper', true);
         this.safeSetCapability('alarm_generic', true);
-        this.triggerCard('tamper_alarm', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('tamper_alarm', { zone: event.zone, description: event.description });
         break;
 
       case 'tamper_restore':
         this.safeSetCapability('alarm_tamper', false);
         this.checkAndClearGenericAlarm();
-        this.triggerCard('tamper_restored', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('tamper_restored', { zone: event.zone, description: event.description });
         break;
 
       // ── Power / Battery ────────────────────────
@@ -338,7 +357,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         if (event.code === '301' || event.code === '337') {
           this.safeSetCapability('ajax_ac_power', false);
         }
-        this.triggerCard('power_trouble', {
+        if (siaOnly) this.triggerCard('power_trouble', {
           zone: event.zone,
           trouble_type: event.description,
           description: event.description,
@@ -350,7 +369,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
         if (event.code === '301' || event.code === '337') {
           this.safeSetCapability('ajax_ac_power', true);
         }
-        this.triggerCard('power_restored', {
+        if (siaOnly) this.triggerCard('power_restored', {
           zone: event.zone,
           trouble_type: event.description,
           description: event.description,
@@ -360,19 +379,19 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       // ── Device Communication ───────────────────
       case 'device_lost':
         this.safeSetCapability('ajax_device_lost', true);
-        this.triggerCard('device_connection_lost', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('device_connection_lost', { zone: event.zone, description: event.description });
         break;
 
       case 'device_restore':
         this.safeSetCapability('ajax_device_lost', false);
-        this.triggerCard('device_connection_restored', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('device_connection_restored', { zone: event.zone, description: event.description });
         break;
 
       // ── Trouble ────────────────────────────────
       case 'trouble':
         this.safeSetCapability('alarm_generic', true);
         if (event.code === '344') this.safeSetCapability('ajax_rf_interference', true);
-        this.triggerCard('trouble_event', {
+        if (siaOnly) this.triggerCard('trouble_event', {
           zone: event.zone,
           trouble_type: event.description,
           description: event.description,
@@ -382,7 +401,7 @@ module.exports = class HubDevice extends AjaxBaseDevice {
       case 'trouble_restore':
         if (event.code === '344') this.safeSetCapability('ajax_rf_interference', false);
         this.checkAndClearGenericAlarm();
-        this.triggerCard('trouble_restored', {
+        if (siaOnly) this.triggerCard('trouble_restored', {
           zone: event.zone,
           trouble_type: event.description,
           description: event.description,
@@ -391,31 +410,33 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
       // ── Bypass ─────────────────────────────────
       case 'bypass':
-        this.triggerCard('zone_bypassed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('zone_bypassed', { zone: event.zone, description: event.description });
         break;
 
       case 'unbypass':
-        this.triggerCard('zone_unbypassed', { zone: event.zone, description: event.description });
+        if (siaOnly) this.triggerCard('zone_unbypassed', { zone: event.zone, description: event.description });
         break;
 
       // ── System & Test ──────────────────────────
       case 'system':
-        this.triggerCard('system_event', { event_type: event.description, description: event.description });
+        if (siaOnly) this.triggerCard('system_event', { event_type: event.description, description: event.description });
         break;
 
       case 'test':
-        this.triggerCard('system_event', { event_type: 'Automatic test', description: event.description });
+        if (siaOnly) this.triggerCard('system_event', { event_type: 'Automatic test', description: event.description });
         break;
     }
 
-    // Always fire the generic catch-all flow card for every event
-    this.triggerCard('alarm_event', {
-      hub_name: this.getName(),
-      event_type: event.type,
-      device_name: deviceName || (event.zone > 0 ? `Zone ${event.zone}` : ''),
-      room_name: roomName,
-      description: event.description,
-    });
+    // Always fire the generic catch-all flow card for every event (SIA-only mode only)
+    if (siaOnly) {
+      this.triggerCard('alarm_event', {
+        hub_name: this.getName(),
+        event_type: event.type,
+        device_name: deviceName || (event.zone > 0 ? `Zone ${event.zone}` : ''),
+        room_name: roomName,
+        description: event.description,
+      });
+    }
 
     // Update connection state - we're receiving events
     this.safeSetCapability('ajax_connection_state', true);
@@ -566,13 +587,15 @@ module.exports = class HubDevice extends AjaxBaseDevice {
 
     // Subscribe to coordinator events
     const coordinator = this.getCoordinator();
+    const connectionMode = this.getStoreValue('connectionMode');
     this.hubListenerBound = (data: any) => this.onHubStateChange(data);
     this.onlineListenerBound = (data: any) => this.onHubOnlineChange(data);
     this.dataUpdatedBound = () => this.updateFromCoordinator();
-    this.apiAlarmEventBound = (event: ApiAlarmEvent) => this.onApiAlarmEvent(event);
     coordinator.on('hubStateChange', this.hubListenerBound);
     coordinator.on('hubOnlineChange', this.onlineListenerBound);
     coordinator.on('dataUpdated', this.dataUpdatedBound);
+
+    this.apiAlarmEventBound = (event: ApiAlarmEvent) => this.onApiAlarmEvent(event);
     coordinator.on('apiAlarmEvent', this.apiAlarmEventBound);
 
     // Initial update

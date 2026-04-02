@@ -104,8 +104,9 @@ export function parseArmingState(state: ArmingState | string): { armed: boolean;
  * Map parsed arming state to Homey homealarm_state capability value.
  */
 export function armingStateToHomey(state: ArmingState | string): string {
-  const { armed, partiallyArmed } = parseArmingState(state);
+  const { armed, nightMode, partiallyArmed } = parseArmingState(state);
   if (partiallyArmed) return 'partially_armed';
+  if (nightMode) return 'partially_armed';
   if (armed) return 'armed';
   return 'disarmed';
 }

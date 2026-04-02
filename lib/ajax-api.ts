@@ -5,7 +5,6 @@ import http from 'http';
 import {
   AuthCredentials,
   SessionState,
-  RefreshResponse,
   AjaxHub,
   AjaxDevice,
   AjaxGroup,
@@ -20,7 +19,6 @@ import {
 } from './types';
 import { hashPassword } from './util';
 
-const API_BASE_URL = 'https://api.ajax.systems/api';
 const USER_AGENT = 'Ajax/3.26.0 (Android 14; SM-S928B)';
 const SESSION_TOKEN_TTL_MS = 15 * 60 * 1000;    // 15 minutes
 const SESSION_REFRESH_MARGIN_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
@@ -70,13 +68,6 @@ export class AjaxApiClient {
   }
 
   /**
-   * Check if running in proxy mode.
-   */
-  isProxyMode(): boolean {
-    return this.credentials.mode === 'proxy';
-  }
-
-  /**
    * Get the SSE URL (proxy mode only).
    */
   getSseUrl(): string | undefined {
@@ -87,11 +78,7 @@ export class AjaxApiClient {
    * Login to the Ajax API.
    */
   async login(): Promise<SessionState> {
-    const { mode, email, password, userRole } = this.credentials;
-
-    if (mode !== 'user' && mode !== 'proxy') {
-      throw new AjaxAuthError('Login is only supported in user or proxy mode');
-    }
+    const { email, password } = this.credentials;
 
     if (!email || !password) {
       throw new AjaxAuthError('Email and password are required for login');
@@ -100,13 +87,12 @@ export class AjaxApiClient {
     const body = {
       login: email,
       passwordHash: hashPassword(password),
-      userRole: userRole || 'USER',
     };
 
     const response = await this.rawRequest('POST', '/login', body, true);
     const data = response as Record<string, any>;
 
-    // Proxy returns user_id (snake_case) and may omit sessionToken/refreshToken
+    // Proxy returns user_id (snake_case)
     const userId = data.userId || data.user_id;
     const sessionToken = data.sessionToken || userId;
     const refreshToken = data.refreshToken || '';
@@ -115,14 +101,14 @@ export class AjaxApiClient {
       throw new AjaxAuthError('No userId in login response');
     }
 
-    // Proxy may provide an API key for hybrid mode
-    if (mode === 'proxy' && data.apiKey) {
+    // Proxy may provide an API key
+    if (data.apiKey) {
       this.credentials.apiKey = data.apiKey;
     }
 
     // Build SSE URL from proxy URL if not provided
     let sseUrl = data.sseUrl;
-    if (!sseUrl && mode === 'proxy' && this.credentials.proxyUrl) {
+    if (!sseUrl && this.credentials.proxyUrl) {
       sseUrl = `${this.credentials.proxyUrl.replace(/\/$/, '')}/events?userId=${userId}`;
     }
 
@@ -161,31 +147,8 @@ export class AjaxApiClient {
     }
 
     // Proxy mode has no refresh token — re-login instead
-    if (this.credentials.mode === 'proxy' && !this.session.refreshToken) {
-      this.log('Proxy mode: re-login instead of refresh');
-      await this.login();
-      return;
-    }
-
-    const body = {
-      userId: this.session.userId,
-      refreshToken: this.session.refreshToken,
-    };
-
-    try {
-      const data = await this.rawRequest('POST', '/refresh', body, false) as RefreshResponse;
-      this.session = {
-        sessionToken: data.sessionToken,
-        refreshToken: data.refreshToken,
-        userId: data.userId,
-        tokenCreatedAt: Date.now(),
-        sseUrl: this.session.sseUrl,
-      };
-      this.log('Session refreshed successfully');
-    } catch (err) {
-      this.session = null;
-      throw new AjaxAuthError(`Session refresh failed: ${(err as Error).message}`);
-    }
+    this.log('Re-login to refresh session');
+    await this.login();
   }
 
   /**
@@ -208,10 +171,10 @@ export class AjaxApiClient {
   // ============================================================
 
   private getBaseUrl(): string {
-    if (this.credentials.mode === 'proxy' && this.credentials.proxyUrl) {
-      return `${this.credentials.proxyUrl.replace(/\/$/, '')}/api`;
+    if (!this.credentials.proxyUrl) {
+      throw new AjaxConnectionError('Proxy URL is not configured');
     }
-    return API_BASE_URL;
+    return `${this.credentials.proxyUrl.replace(/\/$/, '')}/api`;
   }
 
   private getBasePath(): string {
@@ -268,15 +231,13 @@ export class AjaxApiClient {
       'User-Agent': USER_AGENT,
     };
 
-    if (this.credentials.mode === 'proxy') {
-      headers['X-Client-Version'] = '0.12.0';
-    }
+    headers['X-Client-Version'] = '0.12.0';
 
     if (authenticated) {
       Object.assign(headers, this.getAuthHeaders());
     }
 
-    if (noCacheBypass && this.credentials.mode === 'proxy') {
+    if (noCacheBypass) {
       headers['X-Cache-Control'] = 'no-cache';
     }
 
